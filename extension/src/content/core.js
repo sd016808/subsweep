@@ -70,17 +70,36 @@
     return d.getTime();
   };
 
-  /** Runs `worker` over `items` with at most `limit` in flight. */
+  /**
+   * Runs `worker` over `items` with at most `limit` in flight. If a worker throws,
+   * no new items start and the error is rethrown once every running worker has
+   * finished (so nothing keeps running in the background after we return).
+   */
   async function pool(items, limit, worker, signal) {
     let next = 0;
+    let failure = null;
     const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
-      while (next < items.length) {
-        throwIfAborted(signal);
-        const index = next++;
-        await worker(items[index], index);
+      while (next < items.length && !failure) {
+        try {
+          throwIfAborted(signal);
+          const index = next++;
+          await worker(items[index], index);
+        } catch (error) {
+          if (!failure) failure = error;
+        }
       }
     });
     await Promise.all(runners);
+    if (failure) throw failure;
+  }
+
+  /** False once the extension was reloaded/updated and this copy of the script is orphaned. */
+  function contextAlive() {
+    try {
+      return Boolean(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
+    } catch {
+      return false;
+    }
   }
 
   // ---------------------------------------------------------------- i18n
@@ -196,6 +215,7 @@
     addDays,
     monthsAgo,
     pool,
+    contextAlive,
     t,
     fmt,
     h,

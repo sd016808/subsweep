@@ -6,7 +6,10 @@ First release.
 
 - Lists all subscribed channels with their latest upload date (channel feed, with the channel page as fallback).
 - Reads YouTube watch history to show when each channel was last watched; incremental re-scans.
-- Scans can be paused and resumed: watch history is checkpointed after every page, a recent subscription list is reused and checked channels are skipped; an expired saved position falls back to a full read.
+- Scans can be paused and resumed: watch history is checkpointed after every page (own small storage key), a recent subscription list is reused and checked channels are skipped; an expired saved position falls back to a full read.
+- Watch history and latest-upload checks run at the same time; uploads are checked 6 at a time; shorter pauses between pages.
+- Widening the watch-history range only reads the extra months (the end position of the previous read is kept).
+- An outdated copy left running in a tab after an update stops and asks for a page refresh.
 - Filters: Suggested, Not uploading, Not watching, Both, All, Kept; adjustable periods (1–36 months); search and sorting.
 - Bulk unsubscribe with confirmation, progress, stop button, rate-friendly pacing and automatic stop on repeated failures.
 - Bulk unsubscribe keeps running in a background tab; the remaining queue is saved after every channel, so a batch cut short by closing/reloading the tab can be continued.

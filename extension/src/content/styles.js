@@ -210,6 +210,7 @@
   }
   .step.active .step-icon { background: var(--accent-soft); color: var(--accent-ink); }
   .step.done .step-icon { background: var(--accent); color: #fff; }
+  .step.error .step-icon { background: var(--stale-soft); color: var(--stale); }
   .step-text { min-width: 0; }
   .step-label { font-weight: 650; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .step.pending .step-label { color: var(--text-3); }

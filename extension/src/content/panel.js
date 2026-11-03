@@ -119,6 +119,9 @@
     wrap = h('div', { class: 'ss', lang: fmt.locale() });
     root.append(h('style', null, NS.styles.panel), wrap);
 
+    // If SubSweep was updated since this page loaded, say so before anything is clicked.
+    host.addEventListener('pointerdown', () => App.ensureAlive(), true);
+
     // Keep YouTube's keyboard shortcuts from firing while typing in the panel.
     for (const type of ['keydown', 'keyup', 'keypress']) {
       host.addEventListener(type, (event) => {
@@ -343,25 +346,40 @@
     };
   }
 
+  function historyDetail(sc) {
+    const state = sc.steps.history;
+    if (state === 'pending') return t('stepWaiting');
+    if (state === 'error') return t('stepFailed');
+    if (sc.historyOldest && sc.historyCount) return t('historyBackTo', fmt.date(sc.historyOldest));
+    return state === 'done' ? t('upToDate') : t('stepStarting');
+  }
+
   function updateScanUI(ui) {
     const sc = S.scan;
-    const current = SCAN_STEPS.findIndex(([id]) => id === sc.step);
     const details = {
       subs: sc.subs ? t('nChannels', fmt.num(sc.subs)) : t('stepStarting'),
-      history:
-        current < 1 ? t('stepWaiting') : sc.historyOldest && sc.historyCount ? t('historyBackTo', fmt.date(sc.historyOldest)) : t('stepStarting'),
-      uploads: current < 2 ? t('stepWaiting') : sc.uploadsTotal ? `${fmt.num(sc.uploadsDone)} / ${fmt.num(sc.uploadsTotal)}` : t('upToDate'),
+      history: historyDetail(sc),
+      uploads: sc.steps.uploads === 'pending' ? t('stepWaiting') : sc.uploadsTotal ? `${fmt.num(sc.uploadsDone)} / ${fmt.num(sc.uploadsTotal)}` : t('upToDate'),
     };
-    ui.steps.forEach((step, index) => {
-      const state = index < current ? 'done' : index === current ? 'active' : 'pending';
+    // History and latest uploads run at the same time, so each step has its own state.
+    ui.steps.forEach((step) => {
+      const state = sc.steps[step.id];
       if (state !== step.state) {
         step.state = state;
-        step.el.className = `step ${state}`;
-        step.iconBox.replaceChildren(state === 'done' ? icon('check', 16) : state === 'active' ? h('span', { class: 'spinner' }) : icon(step.iconName, 16));
+        step.el.className = `step ${state === 'error' ? 'done error' : state}`;
+        step.iconBox.replaceChildren(
+          state === 'done' ? icon('check', 16) : state === 'error' ? icon('alert', 16) : state === 'active' ? h('span', { class: 'spinner' }) : icon(step.iconName, 16),
+        );
       }
       step.detail.textContent = details[step.id];
     });
-    const pct = sc.step === 'uploads' && sc.uploadsTotal ? (sc.uploadsDone / sc.uploadsTotal) * 100 : null;
+    // Overall progress: the average of the history (by date reached) and the uploads checked.
+    let pct = null;
+    if (sc.steps.subs === 'done') {
+      const history = sc.steps.history === 'active' ? sc.historyPct || 0 : sc.steps.history === 'pending' ? 0 : 1;
+      const uploads = sc.uploadsTotal ? sc.uploadsDone / sc.uploadsTotal : sc.steps.uploads === 'pending' ? 0 : 1;
+      pct = ((history + uploads) / 2) * 100;
+    }
     ui.progress.classList.toggle('indeterminate', pct == null);
     ui.bar.style.width = pct == null ? '' : `${pct.toFixed(1)}%`;
   }
@@ -920,6 +938,20 @@
     ];
   }
 
+  function outdatedView() {
+    return [
+      h('div', { class: 'modal-icon' }, icon('refresh', 24)),
+      h('h3', null, t('outdatedTitle')),
+      h('p', null, t('outdatedBody')),
+      h(
+        'div',
+        { class: 'modal-actions' },
+        h('button', { class: 'btn ghost', onClick: () => App.closeModal() }, t('cancel')),
+        h('button', { class: 'btn primary', onClick: () => location.reload() }, icon('refresh', 15), t('reloadPage')),
+      ),
+    ];
+  }
+
   function clearView() {
     return [
       h('div', { class: 'modal-icon danger' }, icon('trash', 24)),
@@ -955,6 +987,7 @@
     if (modal.type === 'confirm') content = confirmView(modal);
     else if (modal.type === 'unsub' && S.unsub) content = finishedView();
     else if (modal.type === 'clear') content = clearView();
+    else if (modal.type === 'outdated') content = outdatedView();
     els.modal.replaceChildren(h('div', { class: 'modal', role: 'alertdialog', 'aria-modal': 'true' }, content));
   }
 

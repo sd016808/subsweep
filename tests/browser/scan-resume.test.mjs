@@ -134,7 +134,72 @@ test('pausing during the latest-upload step keeps the channels already checked',
   `);
   assert.equal(result.checkedBeforeResume, 3, 'channels checked before the pause were saved');
   assert.equal(result.channelRequests, 1, 'only the unchecked channel is fetched again');
-  assert.deepEqual(result.history, ['FEhistory', 'T1'], 'history was complete: only new entries since then are read');
   assert.equal(result.uploads, 4);
   assert.equal(result.finished, true);
+  // History runs alongside the uploads, so the pause may have caught it mid-way: it continues.
+  assert.deepEqual(result.watch, uninterrupted.watch, 'watch history still ends up complete');
+});
+
+test('widening the range (3 → 12 months) only reads the extra months', async () => {
+  const result = await run(`
+    await App.setSetting('historyMonths', 3);
+    await App.scan();
+    const first = { history: historyRequests(), months: S.data.history.months, edge: S.data.history.edge && S.data.history.edge.token };
+    window.__log.length = 0;
+    await App.setSetting('historyMonths', 12);
+    await App.scan();
+    return { first, history: historyRequests(), ...${SUMMARY}, months: S.data.history.months };
+  `);
+  // 3 months: today, 10 and 40 days ago, then the 100-days-ago page crosses the cutoff.
+  assert.deepEqual(result.first.history, ['FEhistory', 'T1', 'T2', 'T3']);
+  assert.equal(result.first.edge, 'T3', 'remembers where the read stopped');
+  // 12 months: new entries at the top (FEhistory, T1), then straight on from T3 — T2 is not read again.
+  assert.deepEqual(result.history, ['FEhistory', 'T1', 'T3', 'T4', 'T5']);
+  assert.equal(result.months, 12);
+  assert.equal(result.reachedEnd, true);
+  assert.deepEqual(result.watch, uninterrupted.watch, 'same result as reading 12 months in one go (no double counting)');
+});
+
+test('a scan cut short by a page reload continues from the last page it read', async () => {
+  const page = await chrome.newPage({ width: 1280, height: 800 });
+  try {
+    await page.goto(url);
+    await page.evaluate(`(async () => {
+      await SubSweep.App.init();
+      window.__hangAt = 'T4';
+      SubSweep.App.scan();
+      while (!window.__hung) await new Promise((r) => setTimeout(r, 50));
+    })()`);
+    await page.goto(url); // reload while the page for T4 is still loading
+    const result = await page.evaluate(`(async () => {
+      const App = SubSweep.App, S = App.state;
+      const historyRequests = () => window.__log.filter((r) => r.startsWith('history:')).map((r) => r.slice(8));
+      await App.init();
+      const resumable = App.resumeState();
+      await App.scan();
+      return { resumable, history: historyRequests(), requests: window.__log.slice(), ...${SUMMARY} };
+    })()`);
+    assert.deepEqual(result.resumable, { history: true, subs: true, any: true });
+    assert.deepEqual(result.history, ['FEhistory', 'T1', 'T4', 'T5'], 'continues at T4 instead of starting over');
+    assert.ok(!result.requests.includes('FEchannels'));
+    assert.deepEqual(result.watch, uninterrupted.watch);
+    assert.equal(result.finished, true);
+  } finally {
+    await page.close();
+  }
+});
+
+test('watch history and latest uploads are read at the same time', async () => {
+  const result = await run(`
+    window.__latency = 150; // every answer takes 150 ms
+    await App.scan();
+    return { log: window.__log.slice(), ...${SUMMARY} };
+  `);
+  const firstChannel = result.log.findIndex((r) => r.startsWith('channel:'));
+  const lastChannel = result.log.map((r) => r.startsWith('channel:')).lastIndexOf(true);
+  const lastHistory = result.log.map((r) => r.startsWith('history:')).lastIndexOf(true);
+  assert.ok(firstChannel !== -1 && firstChannel < lastHistory, 'upload checks start while the history is still being read');
+  assert.ok(lastChannel < lastHistory, 'and finish before it, instead of waiting for it');
+  assert.deepEqual(result.watch, uninterrupted.watch);
+  assert.equal(result.uploads, 4);
 });

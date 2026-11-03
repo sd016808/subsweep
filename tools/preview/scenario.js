@@ -34,7 +34,16 @@
     async paused() {},
     async scanning() {
       const S = NS.App.state;
-      S.scan = { step: 'uploads', subs: 36, historyOldest: Date.now() - 300 * 86400000, historyCount: 2900, uploadsDone: 23, uploadsTotal: 36, controller: new AbortController() };
+      S.scan = {
+        steps: { subs: 'done', history: 'active', uploads: 'active' },
+        subs: 36,
+        historyOldest: Date.now() - 220 * 86400000,
+        historyCount: 2100,
+        historyPct: 0.6,
+        uploadsDone: 23,
+        uploadsTotal: 36,
+        controller: new AbortController(),
+      };
       NS.App.emit('scan', 'dock');
     },
     async progress() {

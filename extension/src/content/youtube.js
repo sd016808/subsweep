@@ -13,6 +13,9 @@
   const RESPONSE = 'subsweep:res';
   const VIDEOS_TAB = 'EgZ2aWRlb3PyBgQKAjoA'; // "Videos" tab of a channel page
   const MAX_PAGES = 2000;
+  // Lists are page chains (each page names the next), so they can't be fetched in
+  // parallel; keep a short, polite pause between pages.
+  const PAGE_PAUSE_MS = 100;
 
   let sequence = 0;
   const pending = new Map();
@@ -84,7 +87,7 @@
       if (onProgress) onProgress(seen.size);
       const token = P.lastContinuation(json);
       if (!token) break;
-      await sleep(200, signal);
+      await sleep(PAGE_PAUSE_MS, signal);
       json = await call('browse', { continuation: token }, { signal });
     }
     return [...seen.values()];
@@ -97,7 +100,9 @@
    * `onPage({ entries, token, state })` runs after every page; `token` is where the
    * next page starts. Pass that `token` back as `startToken` (with `state`) to
    * continue an interrupted read later instead of starting over.
-   * → { reachedEnd } (false when the cutoff was reached first)
+   * → { reachedEnd, edge }. When the cutoff was reached, `edge` is the position of the
+   * page that crossed it ({ token, date, recognized }); reading from there later
+   * extends the range without starting over.
    */
   async function fetchHistory({ cutoff, signal, startToken = null, state = null, onPage } = {}) {
     const parse = {
@@ -105,10 +110,12 @@
       date: state ? state.date : startOfDay(Date.now()),
       recognized: state ? Boolean(state.recognized) : false,
     };
+    let pageToken = startToken;
     let json = startToken
       ? await call('browse', { continuation: startToken }, { hl: 'en', signal })
       : await call('browse', { browseId: 'FEhistory' }, { hl: 'en', signal });
     for (let page = 0; json && page < MAX_PAGES; page++) {
+      const before = { token: pageToken, date: parse.date, recognized: parse.recognized };
       const entries = P.parseHistoryPage(json, parse);
       const next = P.lastContinuation(json);
       if (page === 0 && !entries.length) {
@@ -131,12 +138,13 @@
       }
       const token = crossed ? null : next;
       if (onPage) await onPage({ entries: kept, token, state: { date: parse.date, recognized: parse.recognized } });
-      if (crossed) return { reachedEnd: false };
-      if (!token) return { reachedEnd: true };
-      await sleep(250, signal);
+      if (crossed) return { reachedEnd: false, edge: before };
+      if (!token) return { reachedEnd: true, edge: null };
+      await sleep(PAGE_PAUSE_MS, signal);
+      pageToken = token;
       json = await call('browse', { continuation: token }, { hl: 'en', signal });
     }
-    return { reachedEnd: false };
+    return { reachedEnd: false, edge: null };
   }
 
   /**

@@ -1,7 +1,9 @@
 // A fake YouTube backend for browser tests: 4 subscriptions and 6 pages of watch history.
 // Every request is logged in window.__log. Hooks:
-//   window.__stopAt = 'T4'   → pause the scan when the page for that token is requested
+//   window.__stopAt = 'T4'     → pause the scan when the page for that token is requested
 //   window.__rejectOnce = 'T4' → answer that token once with HTTP 400 (expired position)
+//   window.__hangAt = 'T4'     → never answer that page (sets window.__hung)
+//   window.__latency = 150     → delay every answer (ms)
 (() => {
   const A = 'UCaaaaaaaaaaaaaaaaaaaaaa';
   const B = 'UCbbbbbbbbbbbbbbbbbbbbbb';
@@ -56,6 +58,7 @@
   window.__log = [];
   window.__INNERTUBE = async (endpoint, body) => {
     const server = window.__server;
+    if (window.__latency) await new Promise((resolve) => setTimeout(resolve, window.__latency));
     if (endpoint === 'subscription/unsubscribe') {
       const ids = body.channelIds || [];
       window.__log.push(`unsubscribe:${ids.length}`);
@@ -82,6 +85,10 @@
     }
     if (body.continuation) {
       window.__log.push(`history:${body.continuation}`);
+      if (window.__hangAt === body.continuation) {
+        window.__hung = true;
+        return new Promise(() => {}); // never answers (the test reloads the page meanwhile)
+      }
       if (window.__rejectOnce === body.continuation) {
         window.__rejectOnce = null;
         return { __status: 400 };

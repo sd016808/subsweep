@@ -8,6 +8,7 @@
   const NS = globalThis.SubSweep;
   const SETTINGS_KEY = 'settings:v1';
   const ACCOUNT_PREFIX = 'acct:';
+  const PARTIAL_PREFIX = 'partial:';
   const MAX_REMOVED_LOG = 1000;
 
   const DEFAULTS = Object.freeze({
@@ -87,21 +88,32 @@
 
   async function loadAccount(key) {
     const storageKey = ACCOUNT_PREFIX + key;
-    const stored = await area().get(storageKey);
+    const partialKey = PARTIAL_PREFIX + key;
+    const stored = await area().get([storageKey, partialKey]);
     const data = Object.assign(emptyAccount(), stored[storageKey] || {});
     if (!Array.isArray(data.subsOrder)) data.subsOrder = [];
     if (!Array.isArray(data.removed)) data.removed = [];
+    data.historyPartial = stored[partialKey] || data.historyPartial || null;
     return data;
   }
 
+  /** Saves everything; the history checkpoint lives under its own (small) key. */
   async function saveAccount(key, data) {
     if (data.removed.length > MAX_REMOVED_LOG) data.removed.length = MAX_REMOVED_LOG;
-    await area().set({ [ACCOUNT_PREFIX + key]: data });
+    const { historyPartial, ...rest } = data;
+    await area().set({ [ACCOUNT_PREFIX + key]: { ...rest, historyPartial: null } });
+    if (historyPartial) await area().set({ [PARTIAL_PREFIX + key]: historyPartial });
+    else await area().remove(PARTIAL_PREFIX + key);
+  }
+
+  /** Cheap checkpoint during a scan: writes only the history-read progress. */
+  async function savePartial(key, partial) {
+    await area().set({ [PARTIAL_PREFIX + key]: partial });
   }
 
   async function clearAll() {
     const everything = await area().get(null);
-    const keys = Object.keys(everything).filter((k) => k.startsWith(ACCOUNT_PREFIX) || k === SETTINGS_KEY);
+    const keys = Object.keys(everything).filter((k) => k.startsWith(ACCOUNT_PREFIX) || k.startsWith(PARTIAL_PREFIX) || k === SETTINGS_KEY);
     if (keys.length) await area().remove(keys);
   }
 
@@ -115,6 +127,7 @@
     accountKey,
     loadAccount,
     saveAccount,
+    savePartial,
     clearAll,
   };
 })();

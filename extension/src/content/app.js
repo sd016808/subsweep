@@ -6,7 +6,7 @@
   'use strict';
 
   const NS = globalThis.SubSweep;
-  const { t, fmt, sleep, jitter, pool, isAbort, startOfDay, monthsAgo, SweepError } = NS.util;
+  const { t, fmt, sleep, jitter, pool, isAbort, abortError, contextAlive, startOfDay, monthsAgo, SweepError } = NS.util;
   const YT = NS.YT;
   const Store = NS.Store;
   const F = NS.filters;
@@ -90,8 +90,36 @@
     try {
       await Store.saveAccount(S.accountKey, S.data);
     } catch (error) {
-      console.warn('[SubSweep] Could not save data', error);
+      onSaveFailed(error);
     }
+  }
+
+  // ---------------------------------------------------------------- outdated copy
+  // When SubSweep is reloaded or updated, the copy already running in an open YouTube tab
+  // loses its connection to the extension and can no longer save. It stops what it is
+  // doing and asks for a page refresh (progress saved so far is kept).
+
+  let orphaned = false;
+
+  function handleOrphan() {
+    if (orphaned) return;
+    orphaned = true;
+    if (S.scan) S.scan.controller.abort();
+    if (S.unsub && !S.unsub.finished) S.unsub.controller.abort();
+    S.modal = { type: 'outdated' };
+    emit('modal', 'dock');
+  }
+
+  /** Call before doing anything; returns false (and shows the dialog) if outdated. */
+  function ensureAlive() {
+    if (contextAlive()) return true;
+    handleOrphan();
+    return false;
+  }
+
+  function onSaveFailed(error) {
+    if (!contextAlive()) handleOrphan();
+    else console.warn('[SubSweep] Could not save data', error);
   }
 
   // ---------------------------------------------------------------- toasts
@@ -130,6 +158,7 @@
 
   /** Called whenever the panel opens: refreshes account + stored data. */
   async function init() {
+    if (!ensureAlive()) return;
     const busy = Boolean(S.scan || S.unsub);
     if (saveTimer) await saveNow(); // don't reload over changes that are still waiting to be saved
     await loadSettings();
@@ -235,16 +264,19 @@
     for (const id of Object.keys(S.data.uploads)) if (!subs[id]) delete S.data.uploads[id];
   }
 
-  // ---- Resuming -------------------------------------------------------------
-  // Reading the watch history is the slow part of a scan, so it is checkpointed
-  // after every page (S.data.historyPartial). A paused or interrupted scan picks
-  // up from the saved position; the subscription list is reused if it was read
-  // shortly before; latest uploads are cached per channel anyway.
+  // ---- Watch history -----------------------------------------------------------
+  // The history is a chain of pages (each page names the next one), so it can only be
+  // read one page at a time. To keep it quick and never repeat work:
+  //  - it runs at the same time as the latest-upload checks (see scan());
+  //  - progress is saved after every page (S.data.historyPartial, its own small storage
+  //    key), so a paused or interrupted read continues where it stopped;
+  //  - the position where a read reached the end of the range is kept (history.edge), so
+  //    widening the range (e.g. 6 → 12 months) only reads the extra months;
+  //  - later scans only read what was watched since the previous one.
 
   const HISTORY_RESUME_MAX_AGE = 3 * 24 * 60 * 60 * 1000;
   const SUBS_RESUME_MAX_AGE = 6 * 60 * 60 * 1000;
-  const CHECKPOINT_EVERY_MS = 1500;
-  let lastCheckpointAt = 0;
+  const UPLOAD_CONCURRENCY = 6;
 
   /** What an unfinished scan left behind for the next one to continue. */
   function resumeState() {
@@ -256,9 +288,12 @@
   }
 
   async function checkpoint() {
-    if (Date.now() - lastCheckpointAt < CHECKPOINT_EVERY_MS) return;
-    lastCheckpointAt = Date.now();
-    await saveNow();
+    if (!S.accountKey || !S.data.historyPartial) return;
+    try {
+      await Store.savePartial(S.accountKey, S.data.historyPartial);
+    } catch (error) {
+      onSaveFailed(error);
+    }
   }
 
   /** Adds `from` into `into`: latest date wins, counts add up. */
@@ -277,29 +312,63 @@
     if (counted) stat[1]++;
   }
 
-  function newPartial(full) {
+  /**
+   * A history read:
+   *  full        — from the top down to the start of the range;
+   *  incremental — from the top down to the previous read (only what's new);
+   *  extend      — from where the previous read ended (history.edge) down to the start
+   *                of a wider range, skipping anything already counted.
+   */
+  function newPartial(mode) {
     const previous = S.data.history;
     const months = S.settings.historyMonths;
     const startedAt = Date.now();
-    const incremental = !full && previous && previous.syncedAt && previous.months >= months;
-    return {
-      mode: incremental ? 'incremental' : 'full',
+    const base = {
+      mode,
       startedAt, // when reading from the top began; becomes history.syncedAt
-      cutoff: incremental ? startOfDay(previous.syncedAt) : startOfDay(monthsAgo(months, startedAt)),
       months,
-      token: null, // where the next page starts
+      cutoff: startOfDay(monthsAgo(months, startedAt)),
+      countAfter: null, // only count entries newer than this (null = count all)
+      skipFrom: null, // ignore entries this recent (already counted)
+      token: null, // where the next page starts (null = the top)
       date: startOfDay(startedAt), // date header in effect at that position
       recognized: false,
       oldest: startOfDay(startedAt),
       entries: 0,
       watch: {},
+      edge: null,
+      reachedEnd: false,
     };
+    if (mode === 'incremental') {
+      base.cutoff = startOfDay(previous.syncedAt);
+      base.countAfter = base.cutoff; // the day of the previous read was already counted
+    }
+    if (mode === 'extend') {
+      const edge = previous.edge || {};
+      base.skipFrom = previous.coverageFrom;
+      base.oldest = previous.coverageFrom;
+      base.token = edge.token || null;
+      if (edge.token) {
+        base.date = edge.date;
+        base.recognized = Boolean(edge.recognized);
+      }
+    }
+    return base;
   }
 
-  /** Reads history pages for `partial`, checkpointing after each one. */
+  function reportHistory(partial) {
+    if (!S.scan) return;
+    const top = partial.skipFrom != null ? partial.skipFrom : partial.startedAt;
+    const span = top - partial.cutoff;
+    S.scan.historyOldest = partial.oldest;
+    S.scan.historyCount = partial.entries;
+    S.scan.historyPct = span > 0 ? Math.min(1, Math.max(0, (top - partial.oldest) / span)) : 1;
+    emit('scan');
+  }
+
+  /** Reads history pages for `partial`, saving progress after each one. */
   async function readHistory(partial, signal) {
-    // Incremental runs: the day of the previous sync was already counted.
-    const countAfter = partial.mode === 'incremental' ? partial.cutoff : -Infinity;
+    reportHistory(partial);
     const result = await YT.fetchHistory({
       cutoff: partial.cutoff,
       signal,
@@ -307,27 +376,34 @@
       state: partial.token ? { date: partial.date, recognized: partial.recognized } : null,
       onPage: async ({ entries, token, state }) => {
         for (const entry of entries) {
-          addEntry(partial.watch, entry, entry.date > countAfter);
+          if (partial.skipFrom != null && entry.date >= partial.skipFrom) continue;
+          addEntry(partial.watch, entry, partial.countAfter == null || entry.date > partial.countAfter);
+          partial.entries++;
           if (entry.date < partial.oldest) partial.oldest = entry.date;
         }
-        partial.entries += entries.length;
         partial.token = token;
         partial.date = state.date;
         partial.recognized = state.recognized;
-        S.scan.historyOldest = partial.oldest;
-        S.scan.historyCount = partial.entries;
-        emit('scan');
+        reportHistory(partial);
         await checkpoint();
       },
     });
     partial.reachedEnd = result.reachedEnd;
+    partial.edge = result.edge;
   }
 
   function finishHistory(partial) {
     const previous = S.data.history;
-    if (partial.mode === 'incremental' && previous) {
+    if (partial.mode !== 'full' && previous) {
       S.data.watch = mergeStats(S.data.watch, partial.watch);
-      S.data.history = { ...previous, syncedAt: partial.startedAt, entries: previous.entries + partial.entries };
+      const next = { ...previous, syncedAt: Math.max(previous.syncedAt, partial.startedAt), entries: previous.entries + partial.entries };
+      if (partial.mode === 'extend') {
+        next.months = partial.months;
+        next.reachedEnd = partial.reachedEnd;
+        next.coverageFrom = partial.reachedEnd ? Math.min(previous.coverageFrom, partial.oldest) : partial.cutoff;
+        next.edge = partial.edge;
+      }
+      S.data.history = next;
     } else {
       S.data.watch = partial.watch;
       S.data.history = {
@@ -336,20 +412,27 @@
         coverageFrom: partial.reachedEnd ? partial.oldest : partial.cutoff,
         reachedEnd: partial.reachedEnd,
         entries: partial.entries,
+        edge: partial.edge,
       };
     }
     S.data.historyPartial = null;
   }
 
-  async function scanHistory(full, signal) {
-    let partial = !full && resumeState().history ? S.data.historyPartial : null;
+  async function runPartial(partial, signal) {
+    S.data.historyPartial = partial;
+    await readHistory(partial, signal);
+    finishHistory(partial);
+  }
 
-    if (partial) {
-      S.scan.historyOldest = partial.oldest;
-      S.scan.historyCount = partial.entries;
-      emit('scan');
-      // 1. Catch up on whatever was watched since the interrupted read started at the top.
-      const since = startOfDay(partial.startedAt);
+  const isExpired = (error) => Boolean(error) && (error.code === 'expired' || error.code === 'badRequest');
+
+  async function scanHistory(full, signal) {
+    // 1. Continue an interrupted read.
+    const saved = !full && resumeState().history ? S.data.historyPartial : null;
+    if (saved) {
+      reportHistory(saved);
+      // Catch up on whatever was watched since that read started at the top…
+      const since = startOfDay(saved.startedAt);
       const caughtUpAt = Date.now();
       const fresh = {};
       await YT.fetchHistory({
@@ -359,27 +442,106 @@
           for (const entry of entries) addEntry(fresh, entry, entry.date > since);
         },
       });
-      mergeStats(partial.watch, fresh);
-      partial.startedAt = caughtUpAt;
-      // 2. Continue from the saved position. If YouTube no longer accepts it, start over.
+      mergeStats(saved.watch, fresh);
+      saved.startedAt = caughtUpAt;
+      // …then carry on from the saved position.
       try {
-        await readHistory(partial, signal);
+        await readHistory(saved, signal);
+        finishHistory(saved);
+        if (saved.mode !== 'incremental' || S.data.history.months >= S.settings.historyMonths) return;
       } catch (error) {
-        if (!error || (error.code !== 'expired' && error.code !== 'badRequest')) throw error;
-        console.warn('[SubSweep] Saved history position expired; reading again from the start', error);
-        partial = null;
+        if (!isExpired(error)) throw error;
+        console.warn('[SubSweep] Saved history position expired; reading it again', error);
+        S.data.historyPartial = null;
       }
     }
 
-    if (!partial) {
-      partial = S.data.historyPartial = newPartial(full);
-      await readHistory(partial, signal);
+    // 2. Normal read.
+    const previous = S.data.history;
+    if (full || !previous || !previous.syncedAt) {
+      await runPartial(newPartial('full'), signal);
+      return;
     }
-    finishHistory(partial);
+    await runPartial(newPartial('incremental'), signal);
+    if (S.settings.historyMonths > S.data.history.months) {
+      if (S.data.history.reachedEnd) {
+        // The history doesn't go back further anyway.
+        S.data.history = { ...S.data.history, months: S.settings.historyMonths };
+        return;
+      }
+      try {
+        await runPartial(newPartial('extend'), signal);
+      } catch (error) {
+        if (!isExpired(error)) throw error;
+        console.warn('[SubSweep] Position of the previous read expired; reading the whole range', error);
+        await runPartial(newPartial('full'), signal);
+      }
+    }
+  }
+
+  /** History part of a scan. Resolves to the error (or null); only a pause rejects. */
+  async function historyStep(full, signal) {
+    let failure = null;
+    try {
+      await scanHistory(full, signal);
+      S.scan.steps.history = 'done';
+    } catch (error) {
+      if (isAbort(error)) throw error;
+      console.warn('[SubSweep] Watch history failed', error);
+      failure = error;
+      S.scan.steps.history = 'error';
+    }
+    S.data.historyError = failure ? failure.code || 'generic' : null;
+    S.scan.historyPct = 1;
+    await saveNow();
+    changed('list', 'chips', 'controls', 'scan');
+    return failure;
+  }
+
+  /** Latest-upload part of a scan: checks channels in parallel, skipping recent results. */
+  async function uploadsStep(signal, controller) {
+    const now = Date.now();
+    const maxAge = S.settings.uploadsCacheHours * 60 * 60 * 1000;
+    const ids = S.data.subsOrder.filter((id) => {
+      const upload = S.data.uploads[id];
+      return !upload || (upload.t == null && !upload.none) || now - upload.checkedAt > maxAge;
+    });
+    // Channels checked recently (e.g. before a pause) count as done, so progress continues.
+    S.scan.uploadsTotal = S.data.subsOrder.length;
+    S.scan.uploadsDone = S.data.subsOrder.length - ids.length;
+    emit('scan');
+    let sinceRefresh = 0;
+    await pool(
+      ids,
+      UPLOAD_CONCURRENCY,
+      async (id) => {
+        try {
+          const upload = await YT.fetchLastUpload(id, { signal });
+          S.data.uploads[id] = { ...upload, checkedAt: Date.now() };
+        } catch (error) {
+          if (isAbort(error)) throw error;
+          if (error && error.code === 'session') {
+            controller.abort(); // signed out: stop the history read too
+            throw error;
+          }
+        }
+        S.scan.uploadsDone++;
+        if (++sinceRefresh >= 20) {
+          sinceRefresh = 0;
+          saveSoon();
+          changed('list', 'chips');
+        }
+        emit('scan');
+      },
+      signal,
+    );
+    S.scan.steps.uploads = 'done';
+    changed('list', 'chips', 'scan');
   }
 
   async function scan(options = {}) {
     if (S.scan || S.unsub || !S.loggedIn) return;
+    if (!ensureAlive()) return;
     const controller = new AbortController();
     const { signal } = controller;
     if (options.recheckUploads) S.data.uploads = {};
@@ -390,10 +552,11 @@
     }
     const resume = resumeState();
     S.scan = {
-      step: resume.subs ? 'history' : 'subs',
+      steps: { subs: resume.subs ? 'done' : 'active', history: 'pending', uploads: 'pending' },
       subs: resume.subs ? S.data.subsOrder.length : 0,
       historyOldest: null,
       historyCount: 0,
+      historyPct: 0,
       uploadsDone: 0,
       uploadsTotal: 0,
       controller,
@@ -413,65 +576,32 @@
         applySubscriptions(list);
         await saveNow();
         changed('body', 'tabs');
-        S.scan.step = 'history';
-        emit('scan');
+        S.scan.steps.subs = 'done';
       }
-      try {
-        await scanHistory(Boolean(options.fullHistory), signal);
-      } catch (error) {
-        if (isAbort(error)) throw error;
-        historyError = error;
-        console.warn('[SubSweep] Watch history failed', error);
-      }
-      S.data.historyError = historyError ? historyError.code || 'generic' : null;
-      await saveNow();
-      changed('list', 'chips', 'controls');
 
-      S.scan.step = 'uploads';
-      const now = Date.now();
-      const maxAge = S.settings.uploadsCacheHours * 60 * 60 * 1000;
-      const ids = S.data.subsOrder.filter((id) => {
-        const upload = S.data.uploads[id];
-        return !upload || (upload.t == null && !upload.none) || now - upload.checkedAt > maxAge;
-      });
-      // Channels checked recently (e.g. before a pause) count as done, so progress continues.
-      S.scan.uploadsTotal = S.data.subsOrder.length;
-      S.scan.uploadsDone = S.data.subsOrder.length - ids.length;
+      // Watch history and latest uploads don't depend on each other: run both at once.
+      S.scan.steps.history = 'active';
+      S.scan.steps.uploads = 'active';
       emit('scan');
-      let sinceRefresh = 0;
-      await pool(
-        ids,
-        4,
-        async (id) => {
-          try {
-            const upload = await YT.fetchLastUpload(id, { signal });
-            S.data.uploads[id] = { ...upload, checkedAt: Date.now() };
-          } catch (error) {
-            if (isAbort(error)) throw error;
-            if (error && error.code === 'session') throw error;
-          }
-          S.scan.uploadsDone++;
-          if (++sinceRefresh >= 20) {
-            sinceRefresh = 0;
-            saveSoon();
-            changed('list', 'chips');
-          }
-          emit('scan');
-        },
-        signal,
-      );
+      const [history, uploads] = await Promise.allSettled([historyStep(Boolean(options.fullHistory), signal), uploadsStep(signal, controller)]);
+      if (uploads.status === 'rejected' && !isAbort(uploads.reason)) throw uploads.reason;
+      if (history.status === 'rejected' && !isAbort(history.reason)) throw history.reason;
+      if (history.status === 'rejected' || uploads.status === 'rejected') throw abortError();
+      historyError = history.value;
 
       S.data.lastScanAt = Date.now();
       if (historyError) toast(t('scanDoneNoHistory'), 'warn', 6000);
       else toast(t('scanDone'), 'success');
     } catch (error) {
-      if (isAbort(error)) toast(t('scanPaused'), 'info', 5000);
+      if (orphaned) {
+        // Handled by the "SubSweep was updated" dialog.
+      } else if (isAbort(error)) toast(t('scanPaused'), 'info', 5000);
       else {
         console.warn('[SubSweep] Scan failed', error);
         toast(errorText(error), 'error', 7000);
       }
     } finally {
-      controller.abort(); // stop any parallel requests still in flight after an error
+      controller.abort(); // make sure nothing keeps running after an error
       S.scan = null;
       await saveNow();
       changed('all');
@@ -518,7 +648,7 @@
   }
 
   function closeModal() {
-    if (S.unsub && !S.unsub.finished) return;
+    if (S.unsub && !S.unsub.finished && !orphaned) return;
     S.modal = null;
     S.unsub = null;
     emit('modal', 'dock');
@@ -688,6 +818,7 @@
 
   async function runUnsubscribe(ids) {
     if (S.unsub || S.scan) return;
+    if (!ensureAlive()) return;
     const controller = new AbortController();
     const { signal } = controller;
     S.unsub = { total: ids.length, done: 0, ok: 0, fail: 0, sent: 0, phase: null, current: null, failures: [], finished: false, stopped: false, fatal: null, controller };
@@ -825,6 +956,7 @@
     rows,
     historyInfo,
     resumeState,
+    ensureAlive,
     estimateMs,
     init,
     loadSettings,

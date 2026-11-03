@@ -14,6 +14,7 @@
       getUILanguage: () => (messages.localeCode && messages.localeCode.message) || 'en',
     },
     runtime: {
+      id: 'subsweep-preview', // a live extension context (see SubSweep.util.contextAlive)
       getManifest: () => ({ version: window.__VERSION || '1.0.0' }),
       sendMessage: () => Promise.resolve({ open: false }),
       onMessage: { addListener() {} },
