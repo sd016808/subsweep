@@ -1,16 +1,25 @@
 #!/usr/bin/env node
 /*
  * Records the SubSweep promo video:
- *   1. narration: one clip per line of tools/video/script.<locale>.mjs, spoken by a voice
- *      built into Windows (tools/video/tts.ps1);
+ *   1. narration: one clip per line of tools/video/script.<locale>.mjs, spoken by
+ *      - an Azure AI Speech neural voice (natural; needs a key, see below), or
+ *      - a voice built into Windows (tools/video/tts.ps1), when there is no key;
  *   2. picture: tools/video/stage.js in headless Chrome, in real time: title cards plus
  *      the real panel scanning, unsubscribing and resubscribing against a fake YouTube
  *      (mock channels, no real account), with subtitles;
  *   3. ffmpeg puts the frames and the voice clips together.
  *
- * Usage:  node tools/video/make-video.mjs [--voice=Yating|Hanhan|Zhiwei] [--rate=1.05] [--keep-frames]
+ * Usage:  node tools/video/make-video.mjs [--tts=azure|windows] [--voice=…] [--rate=…] [--keep-frames]
+ *   Azure voices (zh-TW): HsiaoChen (default), HsiaoYu, YunJhe — or any full voice name.
+ *   Windows voices:       Yating (default), Hanhan, Zhiwei.
+ *   --rate: speaking speed, 1 = the voice's normal speed.
+ *
+ * Azure key: put these two lines in a file named .env in the project folder (git ignores it):
+ *   AZURE_SPEECH_KEY=<key 1 of your Speech resource>
+ *   AZURE_SPEECH_REGION=<its location, e.g. eastasia>
+ *
  * Output: dist/video/subsweep-promo-<locale>.mp4, .srt (subtitles) and -thumbnail.jpg
- * Needs Windows (for the voices), Chrome and ffmpeg on PATH.
+ * Needs Chrome and ffmpeg on PATH (and Windows for the built-in voices).
  */
 import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
@@ -27,10 +36,21 @@ const args = Object.fromEntries(
     return [key, value];
   }),
 );
-const VOICE = args.voice || 'Yating';
-const RATE = Number(args.rate || 1.15);
+if (fs.existsSync(path.join(ROOT, '.env'))) process.loadEnvFile(path.join(ROOT, '.env'));
+
 const LOCALE = args.locale || 'zh_TW';
 const SCRIPT = (await import(`./script.${LOCALE}.mjs`)).default;
+const LANG = SCRIPT.locale.replace('_', '-');
+const TTS = args.tts || (process.env.AZURE_SPEECH_KEY ? 'azure' : 'windows');
+if (!['azure', 'windows'].includes(TTS)) throw new Error(`Unknown --tts=${TTS} (azure or windows)`);
+const VOICE =
+  TTS === 'azure'
+    ? (args.voice || 'HsiaoChen').includes('-')
+      ? args.voice
+      : `${LANG}-${args.voice || 'HsiaoChen'}Neural`
+    : args.voice || 'Yating';
+// Neural voices already speak at a natural pace; the built-in ones are slow.
+const RATE = Number(args.rate || (TTS === 'azure' ? 1.05 : 1.15));
 
 const OUT = path.join(ROOT, 'dist', 'video');
 const TTS_DIR = path.join(OUT, 'tts');
@@ -47,11 +67,15 @@ const run = (command, commandArgs, options = {}) => {
 
 const escapeXml = (s) => s.replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[c]);
 const ssml = (text) =>
-  `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${SCRIPT.locale.replace('_', '-')}"><prosody rate="${RATE}">${escapeXml(text)}</prosody></speak>`;
+  `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${LANG}">` +
+  (TTS === 'azure' ? `<voice name="${VOICE}">` : '') +
+  `<prosody rate="${RATE}">${escapeXml(text)}</prosody>` +
+  (TTS === 'azure' ? '</voice>' : '') +
+  '</speak>';
 
 const lines = SCRIPT.scenes.flatMap((scene) =>
   scene.lines.map((line, i) => {
-    const hash = crypto.createHash('sha1').update(`${VOICE}|${RATE}|${line.say}`).digest('hex').slice(0, 16);
+    const hash = crypto.createHash('sha1').update(`${TTS}|${VOICE}|${RATE}|${line.say}`).digest('hex').slice(0, 16);
     return {
       key: `${scene.id}.${i}`,
       say: line.say,
@@ -61,12 +85,49 @@ const lines = SCRIPT.scenes.flatMap((scene) =>
   }),
 );
 
-const missing = lines.filter((line) => !fs.existsSync(line.file));
-if (missing.length) {
-  console.log(`Voice: ${missing.length} line(s) with Microsoft ${VOICE}…`);
+/** Azure AI Speech REST API: one request per line, 24 kHz 16-bit mono WAV. */
+async function synthesizeAzure(todo) {
+  const key = process.env.AZURE_SPEECH_KEY;
+  const region = process.env.AZURE_SPEECH_REGION;
+  if (!key || !region) throw new Error('Azure voices need AZURE_SPEECH_KEY and AZURE_SPEECH_REGION (see the top of tools/video/make-video.mjs).');
+  for (const line of todo) {
+    for (let attempt = 0; ; attempt++) {
+      const response = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': key,
+          'Content-Type': 'application/ssml+xml',
+          'X-Microsoft-OutputFormat': 'riff-24khz-16bit-mono-pcm',
+          'User-Agent': 'subsweep-promo-video',
+        },
+        body: ssml(line.say),
+      });
+      if (response.ok) {
+        fs.writeFileSync(line.file, Buffer.from(await response.arrayBuffer()));
+        break;
+      }
+      // The free tier allows a limited number of requests per minute.
+      if (response.status === 429 && attempt < 5) {
+        await new Promise((resolve) => setTimeout(resolve, 5000 * (attempt + 1)));
+        continue;
+      }
+      const hint = response.status === 401 ? ' (wrong key, or the key belongs to another region)' : response.status === 400 ? ` (voice ${VOICE} may not exist)` : '';
+      throw new Error(`Azure speech: HTTP ${response.status}${hint} for "${line.say}"`);
+    }
+  }
+}
+
+function synthesizeWindows(todo) {
   const jobs = path.join(TTS_DIR, 'jobs.json');
-  fs.writeFileSync(jobs, JSON.stringify(missing.map((line) => ({ ssml: ssml(line.say), out: line.file }))));
+  fs.writeFileSync(jobs, JSON.stringify(todo.map((line) => ({ ssml: ssml(line.say), out: line.file }))));
   run('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(ROOT, 'tools', 'video', 'tts.ps1'), '-Jobs', jobs, '-Voice', VOICE]);
+}
+
+const missing = lines.filter((line) => !fs.existsSync(line.file));
+console.log(`Voice: ${TTS === 'azure' ? 'Azure' : 'Windows'} ${VOICE}, rate ${RATE}${missing.length ? ` (${missing.length} new line(s))` : ''}`);
+if (missing.length) {
+  if (TTS === 'azure') await synthesizeAzure(missing);
+  else synthesizeWindows(missing);
 }
 
 function readWav(file) {
