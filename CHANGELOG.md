@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 — 2026-11-04
+
+Store release, same as 1.0.1. It replaces 1.0.0 in Firefox Add-ons review: 1.0.0 still had the validator warning about Firefox for Android.
+
 ## 1.0.1 — 2026-11-04
 
 Same code as 1.0.0, with a new version number: AMO uses each version number only once per add-on (listed and self-distributed together), and 1.0.0 is in store review. 1.0.1 is the signed, self-distributed Firefox build for testers. The next store release is 1.0.2 or higher.
