@@ -114,9 +114,9 @@ TECHNICAL NOTES
 ### 商店審核期間先給朋友用
 
 1. 把 `extension/manifest.json` 的 `version` 加一。**AMO 上每個版本號只能用一次，公開版和自行發布版共用**，所以不能和審核中的版本相同。
-2. `npm run package` → Developer Hub →「Upload New Version」→ 選「**On your own**」→ 上傳 Firefox 的 zip。
-3. 自動檢查通過就會簽署（通常幾分鐘，不用等人工審核），到版本頁面下載 `.xpi` 傳給朋友。朋友把它拖進 Firefox 視窗就能安裝，重開也不會消失，但**不會自動更新**。
-4. 下次公開發布的版本號要比這個自行發布版大，例如審核中 1.0.0、自行發布 1.0.1，下一個公開版就用 1.0.2。附加元件 ID 相同，所以等商店上的版本比較新時，朋友從商店安裝會直接升級，資料保留。
+2. `npm run package` → My Add-ons → SubSweep →「**Upload New Version**」→ 第一步「How to Distribute this Version」選「**On your own**」→ 上傳 Firefox 的 zip。**不要**用「Submit a New Add-on」：那是建立另一個附加元件用的，會出現「發現重複的附加元件 ID」。
+3. 自動檢查通過就會簽署（通常幾分鐘，不用等人工審核），到版本頁面下載 `.xpi` 傳給朋友。朋友把它拖進 Firefox 視窗就能安裝，重開也不會消失。
+4. 下次公開發布的版本號要比這個自行發布版大，例如審核中 1.0.0、自行發布 1.0.1，下一個公開版就用 1.0.2。商店上的公開版只要版本比較新，Firefox 就會**自動**把朋友裝的自行發布版更新過去，資料保留，因為兩者是同一個附加元件 ID。
 
 ---
 
