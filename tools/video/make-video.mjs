@@ -2,6 +2,8 @@
 /*
  * Records the SubSweep promo video:
  *   1. narration: one clip per line of tools/video/script.<locale>.mjs, spoken by
+ *      - BreezyVoice (open source, Taiwanese Mandarin, runs on this PC; --tts=breezy), which
+ *        speaks in the voice of a short reference recording (see below), or
  *      - an Azure AI Speech neural voice (natural; needs a key, see below), or
  *      - a voice built into Windows (tools/video/tts.ps1), when there is no key;
  *   2. picture: tools/video/stage.js in headless Chrome, in real time: title cards plus
@@ -9,7 +11,12 @@
  *      (mock channels, no real account), with subtitles;
  *   3. ffmpeg puts the frames and the voice clips together.
  *
- * Usage:  node tools/video/make-video.mjs [--tts=azure|windows] [--voice=…] [--rate=…] [--keep-frames]
+ * Usage:  node tools/video/make-video.mjs [--tts=breezy|azure|windows] [--voice=…] [--rate=…] [--keep-frames]
+ *   BreezyVoice: installed in ../BreezyVoice (or BREEZYVOICE_DIR). The voice comes from
+ *     tools/video/voice/reference.wav (or .m4a/.mp3, 5–15 s of clear speech) and its exact
+ *     text in tools/video/voice/reference.txt; or --ref=<file> --ref-text=<text>.
+ *     --ref=example uses BreezyVoice's sample voice, for a quick listen only (its usage
+ *     rights aren't stated: don't publish a video made with it).
  *   Azure voices (zh-TW): HsiaoChen (default), HsiaoYu, YunJhe — or any full voice name.
  *   Windows voices:       Yating (default), Hanhan, Zhiwei.
  *   --rate: speaking speed, 1 = the voice's normal speed.
@@ -42,15 +49,36 @@ const LOCALE = args.locale || 'zh_TW';
 const SCRIPT = (await import(`./script.${LOCALE}.mjs`)).default;
 const LANG = SCRIPT.locale.replace('_', '-');
 const TTS = args.tts || (process.env.AZURE_SPEECH_KEY ? 'azure' : 'windows');
-if (!['azure', 'windows'].includes(TTS)) throw new Error(`Unknown --tts=${TTS} (azure or windows)`);
+if (!['breezy', 'azure', 'windows'].includes(TTS)) throw new Error(`Unknown --tts=${TTS} (breezy, azure or windows)`);
+const BREEZY_DIR = process.env.BREEZYVOICE_DIR || path.join(ROOT, '..', 'BreezyVoice');
+const REF = TTS === 'breezy' ? breezyReference() : null;
 const VOICE =
-  TTS === 'azure'
-    ? (args.voice || 'HsiaoChen').includes('-')
-      ? args.voice
-      : `${LANG}-${args.voice || 'HsiaoChen'}Neural`
-    : args.voice || 'Yating';
+  TTS === 'breezy'
+    ? `breezy-${crypto.createHash('sha1').update(fs.readFileSync(REF.audio)).update(REF.text).digest('hex').slice(0, 12)}`
+    : TTS === 'azure'
+      ? (args.voice || 'HsiaoChen').includes('-')
+        ? args.voice
+        : `${LANG}-${args.voice || 'HsiaoChen'}Neural`
+      : args.voice || 'Yating';
 // Neural voices already speak at a natural pace; the built-in ones are slow.
-const RATE = Number(args.rate || (TTS === 'azure' ? 1.05 : 1.15));
+const RATE = Number(args.rate || { breezy: 1, azure: 1.05, windows: 1.15 }[TTS]);
+
+/** The recording BreezyVoice imitates, and what is said in it. */
+function breezyReference() {
+  if (args.ref === 'example') {
+    // First row of BreezyVoice's sample batch: audio file name, speaker, transcription, …
+    const row = fs.readFileSync(path.join(BREEZY_DIR, 'data', 'batch_files.csv'), 'utf8').split(/\r?\n/)[1].split(',');
+    console.warn("Using BreezyVoice's sample voice: for listening only, don't publish this video.");
+    return { audio: path.join(BREEZY_DIR, 'data', `${row[0]}.wav`), text: row[2] };
+  }
+  const dir = path.join(ROOT, 'tools', 'video', 'voice');
+  const audio = args.ref || ['wav', 'm4a', 'mp3', 'flac', 'ogg', 'webm'].map((ext) => path.join(dir, `reference.${ext}`)).find((file) => fs.existsSync(file));
+  const textFile = path.join(dir, 'reference.txt');
+  const text = (args['ref-text'] || (fs.existsSync(textFile) ? fs.readFileSync(textFile, 'utf8') : '')).trim();
+  if (!audio || !fs.existsSync(audio)) throw new Error('BreezyVoice needs a reference recording: tools/video/voice/reference.wav (or .m4a / .mp3), or --ref=<file>.');
+  if (!text) throw new Error('Write what is said in the reference recording into tools/video/voice/reference.txt (or pass --ref-text=…).');
+  return { audio, text };
+}
 
 const OUT = path.join(ROOT, 'dist', 'video');
 const TTS_DIR = path.join(OUT, 'tts');
@@ -123,10 +151,49 @@ function synthesizeWindows(todo) {
   run('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(ROOT, 'tools', 'video', 'tts.ps1'), '-Jobs', jobs, '-Voice', VOICE]);
 }
 
+/**
+ * BreezyVoice (MediaTek Research, Apache-2.0): one batch run for all lines, in the voice of
+ * the reference recording. Its WAVs are converted to 16-bit mono (and sped up with --rate).
+ */
+function synthesizeBreezy(todo) {
+  const python = path.join(BREEZY_DIR, '.venv', 'Scripts', 'python.exe');
+  if (!fs.existsSync(path.join(BREEZY_DIR, 'batch_inference.py')) || !fs.existsSync(python)) {
+    throw new Error(`BreezyVoice isn't installed in ${BREEZY_DIR} (set BREEZYVOICE_DIR if it is elsewhere).`);
+  }
+  const work = path.join(OUT, 'breezy');
+  const prompts = path.join(work, 'prompt');
+  const results = path.join(work, 'out');
+  fs.rmSync(work, { recursive: true, force: true });
+  fs.mkdirSync(prompts, { recursive: true });
+  fs.mkdirSync(results, { recursive: true });
+  // The reference: 16 kHz mono, at most 20 s.
+  run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', REF.audio, '-ac', '1', '-ar', '16000', '-t', '20', path.join(prompts, 'ref.wav')]);
+  const quote = (value) => `"${String(value).replace(/"/g, '""')}"`;
+  const csv = path.join(work, 'lines.csv');
+  fs.writeFileSync(
+    csv,
+    'speaker_prompt_audio_filename,speaker,speaker_prompt_text_transcription,content_to_synthesize,output_audio_filename\n' +
+      todo.map((line, i) => ['ref', '', REF.text, line.say, `line${i}`].map(quote).join(',')).join('\n') +
+      '\n',
+  );
+  run(python, ['batch_inference.py', '--csv_file', csv, '--speaker_prompt_audio_folder', prompts, '--output_audio_folder', results], {
+    cwd: BREEZY_DIR,
+    env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
+  });
+  todo.forEach((line, i) => {
+    const produced = path.join(results, `line${i}.wav`);
+    if (!fs.existsSync(produced)) throw new Error(`BreezyVoice produced no audio for "${line.say}"`);
+    const tempo = RATE !== 1 ? ['-af', `atempo=${RATE}`] : [];
+    run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', produced, ...tempo, '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le', line.file]);
+  });
+}
+
 const missing = lines.filter((line) => !fs.existsSync(line.file));
-console.log(`Voice: ${TTS === 'azure' ? 'Azure' : 'Windows'} ${VOICE}, rate ${RATE}${missing.length ? ` (${missing.length} new line(s))` : ''}`);
+const VOICE_NAME = { breezy: `BreezyVoice (${REF ? path.basename(REF.audio) : ''})`, azure: `Azure ${VOICE}`, windows: `Windows ${VOICE}` }[TTS];
+console.log(`Voice: ${VOICE_NAME}, rate ${RATE}${missing.length ? ` (${missing.length} new line(s))` : ''}`);
 if (missing.length) {
-  if (TTS === 'azure') await synthesizeAzure(missing);
+  if (TTS === 'breezy') synthesizeBreezy(missing);
+  else if (TTS === 'azure') await synthesizeAzure(missing);
   else synthesizeWindows(missing);
 }
 

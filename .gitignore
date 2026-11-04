@@ -5,3 +5,5 @@ dist/
 Thumbs.db
 site/
 .env
+tools/video/voice/*
+!tools/video/voice/reference.txt
