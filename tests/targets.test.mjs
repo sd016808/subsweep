@@ -4,7 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { EXT, GECKO_ID, manifestFor, packageEntries, readManifest } from '../tools/lib/targets.mjs';
+import { EXT, GECKO_ID, extensionFiles, manifestFor, packageEntries, readManifest } from '../tools/lib/targets.mjs';
+
+const COPYRIGHT = 'Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.';
 
 test('the Chrome package uses extension/manifest.json unchanged', () => {
   assert.deepEqual(manifestFor('chrome'), readManifest());
@@ -27,6 +29,14 @@ test('the Firefox manifest uses a background script, a fixed add-on ID and decla
   // Everything else is the same as in Chrome.
   for (const key of ['name', 'version', 'permissions', 'host_permissions', 'content_scripts', 'action', 'icons', 'default_locale']) {
     assert.deepEqual(firefox[key], chrome[key], key);
+  }
+});
+
+test('every packaged script starts with the copyright notice', () => {
+  const scripts = extensionFiles().filter((entry) => entry.name.endsWith('.js'));
+  assert.ok(scripts.length > 0);
+  for (const { name, file } of scripts) {
+    assert.ok(fs.readFileSync(file, 'utf8').startsWith(`/*\n * ${COPYRIGHT}\n`), `${name}: add the copyright line at the top of its header comment`);
   }
 });
 

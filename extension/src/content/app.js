@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — application state and actions (scan, filters, unsubscribe, undo…).
  * The view (panel.js) subscribes with App.on() and re-renders the regions it is told about.
  */

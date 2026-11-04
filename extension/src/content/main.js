@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — content script entry point.
  */
 (() => {

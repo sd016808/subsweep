@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — background script (a service worker in Chrome, an event page in Firefox).
  *
  * Toolbar button:

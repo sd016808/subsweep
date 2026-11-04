@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — styles for the panel and the launcher button (rendered inside Shadow DOM,
  * so they never leak into YouTube's page and YouTube's styles never leak in).
  */

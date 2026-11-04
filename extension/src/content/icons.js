@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — inline SVG icons (24×24, stroke style) and the brand mark.
  * Built with createElementNS so nothing is parsed as HTML.
  */

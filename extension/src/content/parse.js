@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — parsers for YouTube responses (pure functions, unit-tested).
  *
  * YouTube's internal JSON changes shape often, so instead of hard-coding long

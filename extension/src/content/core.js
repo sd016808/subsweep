@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — shared helpers: errors, timing, i18n, formatting and a tiny DOM builder.
  * All content-script files attach to the `SubSweep` namespace in load order.
  */

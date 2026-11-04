@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — local storage (chrome.storage.local). Nothing is synced or uploaded.
  * Data is kept per YouTube account under a hashed key.
  */

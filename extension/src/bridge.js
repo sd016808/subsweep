@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — page bridge (runs in the page's MAIN world on www.youtube.com).
  *
  * YouTube's own web app talks to its "youtubei" endpoints with the signed-in

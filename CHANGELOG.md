@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Copyright notice at the top of every script; LICENSE (all rights reserved).
+
 ## 1.0.2 — 2026-11-04
 
 Store release, same as 1.0.1. It replaces 1.0.0 in Firefox Add-ons review: 1.0.0 still had the validator warning about Firefox for Android.

@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2026 sd016808 <sd016808@gmail.com>. All rights reserved.
+ *
  * SubSweep — talks to YouTube through the page bridge (see src/bridge.js) and the
  * public channel feeds. Every request goes to www.youtube.com only.
  */
