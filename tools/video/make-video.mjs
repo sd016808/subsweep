@@ -17,6 +17,19 @@
  *     text in tools/video/voice/reference.txt; or --ref=<file> --ref-text=<text>.
  *     --ref=example uses BreezyVoice's sample voice, for a quick listen only (its usage
  *     rights aren't stated: don't publish a video made with it).
+ *     Installing it on Windows (it is written for Linux), next to this project:
+ *       git clone --recursive https://github.com/mtkresearch/BreezyVoice.git ../BreezyVoice
+ *       cd ../BreezyVoice && python -m pip install --user uv && python -m uv venv --python 3.10 .venv
+ *       requirements-windows.txt = requirements.txt without the two ttsfrd lines and
+ *         WeTextProcessing, plus: onnxruntime==1.16.3, ruamel.yaml<0.18, setuptools<80
+ *       echo setuptools<80 > build-constraints.txt
+ *       python -m uv pip install --python .venv/Scripts/python.exe -r requirements-windows.txt
+ *         --index-strategy unsafe-best-match --build-constraints build-constraints.txt
+ *       WeTextProcessing (text normalization) has no Windows build: add a pass-through
+ *         tn/chinese/normalizer.py and tn/english/normalizer.py (class Normalizer with
+ *         normalize(text) returning text) in the BreezyVoice folder. The narration has no
+ *         numbers or dates, so nothing needs normalizing.
+ *     The model (~1.5 GB) downloads on the first run; tools/video/breezy_batch.py runs it.
  *   Azure voices (zh-TW): HsiaoChen (default), HsiaoYu, YunJhe — or any full voice name.
  *   Windows voices:       Yating (default), Hanhan, Zhiwei.
  *   --rate: speaking speed, 1 = the voice's normal speed.
@@ -157,31 +170,24 @@ function synthesizeWindows(todo) {
  */
 function synthesizeBreezy(todo) {
   const python = path.join(BREEZY_DIR, '.venv', 'Scripts', 'python.exe');
-  if (!fs.existsSync(path.join(BREEZY_DIR, 'batch_inference.py')) || !fs.existsSync(python)) {
+  if (!fs.existsSync(path.join(BREEZY_DIR, 'single_inference.py')) || !fs.existsSync(python)) {
     throw new Error(`BreezyVoice isn't installed in ${BREEZY_DIR} (set BREEZYVOICE_DIR if it is elsewhere).`);
   }
-  const work = path.join(OUT, 'breezy');
-  const prompts = path.join(work, 'prompt');
-  const results = path.join(work, 'out');
-  fs.rmSync(work, { recursive: true, force: true });
-  fs.mkdirSync(prompts, { recursive: true });
-  fs.mkdirSync(results, { recursive: true });
+  // One folder per reference voice; lines already spoken (e.g. before an interruption) are kept.
+  const work = path.join(OUT, 'breezy', VOICE);
+  fs.mkdirSync(work, { recursive: true });
+  const rawOf = (line) => path.join(work, path.basename(line.file));
   // The reference: 16 kHz mono, at most 20 s.
-  run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', REF.audio, '-ac', '1', '-ar', '16000', '-t', '20', path.join(prompts, 'ref.wav')]);
-  const quote = (value) => `"${String(value).replace(/"/g, '""')}"`;
-  const csv = path.join(work, 'lines.csv');
-  fs.writeFileSync(
-    csv,
-    'speaker_prompt_audio_filename,speaker,speaker_prompt_text_transcription,content_to_synthesize,output_audio_filename\n' +
-      todo.map((line, i) => ['ref', '', REF.text, line.say, `line${i}`].map(quote).join(',')).join('\n') +
-      '\n',
-  );
-  run(python, ['batch_inference.py', '--csv_file', csv, '--speaker_prompt_audio_folder', prompts, '--output_audio_folder', results], {
+  const prompt = path.join(work, 'reference.wav');
+  run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', REF.audio, '-ac', '1', '-ar', '16000', '-t', '20', prompt]);
+  const jobs = path.join(work, 'jobs.json');
+  fs.writeFileSync(jobs, JSON.stringify({ prompt_audio: prompt, prompt_text: REF.text, lines: todo.map((line) => ({ text: line.say, out: rawOf(line) })) }));
+  run(python, [path.join(ROOT, 'tools', 'video', 'breezy_batch.py'), jobs], {
     cwd: BREEZY_DIR,
     env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
   });
-  todo.forEach((line, i) => {
-    const produced = path.join(results, `line${i}.wav`);
+  todo.forEach((line) => {
+    const produced = rawOf(line);
     if (!fs.existsSync(produced)) throw new Error(`BreezyVoice produced no audio for "${line.say}"`);
     const tempo = RATE !== 1 ? ['-af', `atempo=${RATE}`] : [];
     run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', produced, ...tempo, '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le', line.file]);
