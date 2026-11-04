@@ -1,11 +1,11 @@
 {
-  "extName": { "message": "SubSweep - YouTube 구독 정리 도구" },
+  "extName": { "message": "SubSweep – YouTube용 구독 정리 도구" },
   "extShortName": { "message": "SubSweep" },
   "extDescription": { "message": "업로드가 멈췄거나 더 이상 보지 않는 채널을 찾아 한 번에 구독 취소하세요. 모든 데이터는 브라우저에만 저장됩니다." },
   "actionTitle": { "message": "SubSweep 열기" },
   "localeCode": { "message": "ko" },
 
-  "tagline": { "message": "YouTube 구독 정리 도구" },
+  "tagline": { "message": "YouTube용 구독 정리 도구" },
   "tabChannels": { "message": "채널" },
   "tabRemoved": { "message": "구독 취소됨" },
   "tabSettings": { "message": "설정" },

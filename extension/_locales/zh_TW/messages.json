@@ -1,11 +1,11 @@
 {
-  "extName": { "message": "SubSweep - YouTube 訂閱清理工具" },
+  "extName": { "message": "SubSweep – 適用於 YouTube 的訂閱清理工具" },
   "extShortName": { "message": "SubSweep" },
   "extDescription": { "message": "找出很久沒更新、或你已經很久沒看的頻道，一次批次退訂。所有資料只留在你的瀏覽器。" },
   "actionTitle": { "message": "開啟 SubSweep" },
   "localeCode": { "message": "zh-TW" },
 
-  "tagline": { "message": "YouTube 訂閱清理工具" },
+  "tagline": { "message": "適用於 YouTube 的訂閱清理工具" },
   "tabChannels": { "message": "頻道" },
   "tabRemoved": { "message": "已退訂" },
   "tabSettings": { "message": "設定" },

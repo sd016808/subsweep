@@ -1,4 +1,4 @@
-# SubSweep - YouTube 訂閱清理工具
+# SubSweep – 適用於 YouTube 的訂閱清理工具
 
 <img src="store/assets/icon-128.png" width="72" align="right" alt="">
 

@@ -3,7 +3,7 @@
 ## 名前
 （`_locales/ja/messages.json` の `extName` から自動入力）
 
-SubSweep - YouTube 登録チャンネル整理ツール
+SubSweep – YouTube 向け登録チャンネル整理ツール
 
 ## 概要（最大 132 文字）
 （`extDescription` から自動入力）

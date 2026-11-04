@@ -2,7 +2,7 @@
   "name": "subsweep",
   "version": "1.0.0",
   "private": true,
-  "description": "SubSweep - YouTube Subscription Cleaner: a browser extension that finds YouTube channels you have outgrown and unsubscribes in bulk.",
+  "description": "SubSweep – Subscription Cleaner for YouTube: a browser extension that finds YouTube channels you have outgrown and unsubscribes in bulk.",
   "scripts": {
     "test": "node --test \"tests/*.test.mjs\"",
     "test:browser": "node --test --test-concurrency=1 \"tests/browser/*.test.mjs\"",

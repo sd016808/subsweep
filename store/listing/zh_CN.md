@@ -3,7 +3,7 @@
 ## 名称
 （自动取自 `_locales/zh_CN/messages.json` 的 `extName`）
 
-SubSweep - YouTube 订阅清理工具
+SubSweep – 适用于 YouTube 的订阅清理工具
 
 ## 摘要（最多 132 个字符）
 （自动取自 `extDescription`）

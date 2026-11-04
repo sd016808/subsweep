@@ -1,11 +1,11 @@
 {
-  "extName": { "message": "SubSweep - YouTube 登録チャンネル整理ツール" },
+  "extName": { "message": "SubSweep – YouTube 向け登録チャンネル整理ツール" },
   "extShortName": { "message": "SubSweep" },
   "extDescription": { "message": "更新が止まったチャンネルや、最近見ていないチャンネルを見つけて、まとめて登録解除。データはすべてブラウザ内に保存されます。" },
   "actionTitle": { "message": "SubSweep を開く" },
   "localeCode": { "message": "ja" },
 
-  "tagline": { "message": "YouTube 登録チャンネル整理ツール" },
+  "tagline": { "message": "YouTube 向け登録チャンネル整理ツール" },
   "tabChannels": { "message": "チャンネル" },
   "tabRemoved": { "message": "登録解除済み" },
   "tabSettings": { "message": "設定" },

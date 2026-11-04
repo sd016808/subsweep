@@ -1,11 +1,11 @@
 {
-  "extName": { "message": "SubSweep - YouTube Subscription Cleaner", "description": "Extension name (max 75 characters)." },
+  "extName": { "message": "SubSweep – Subscription Cleaner for YouTube", "description": "Extension name (max 75 characters)." },
   "extShortName": { "message": "SubSweep", "description": "Short brand name. Do not translate." },
   "extDescription": { "message": "Find channels that stopped uploading or that you no longer watch, and unsubscribe from many at once. Runs in your browser.", "description": "Store summary (max 132 characters)." },
   "actionTitle": { "message": "Open SubSweep" },
   "localeCode": { "message": "en", "description": "BCP 47 language tag of this translation, used for date and number formatting." },
 
-  "tagline": { "message": "YouTube Subscription Cleaner" },
+  "tagline": { "message": "Subscription Cleaner for YouTube" },
   "tabChannels": { "message": "Channels" },
   "tabRemoved": { "message": "Unsubscribed" },
   "tabSettings": { "message": "Settings" },

@@ -3,7 +3,7 @@
 ## Name
 (from `_locales/en/messages.json` → `extName`, filled in automatically)
 
-SubSweep - YouTube Subscription Cleaner
+SubSweep – Subscription Cleaner for YouTube
 
 ## Summary (max 132 characters)
 (from `extDescription`, filled in automatically)

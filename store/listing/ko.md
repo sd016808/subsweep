@@ -3,7 +3,7 @@
 ## 이름
 (`_locales/ko/messages.json`의 `extName`에서 자동 입력)
 
-SubSweep - YouTube 구독 정리 도구
+SubSweep – YouTube용 구독 정리 도구
 
 ## 요약 (최대 132자)
 (`extDescription`에서 자동 입력)

@@ -1,11 +1,11 @@
 {
-  "extName": { "message": "SubSweep - YouTube 订阅清理工具" },
+  "extName": { "message": "SubSweep – 适用于 YouTube 的订阅清理工具" },
   "extShortName": { "message": "SubSweep" },
   "extDescription": { "message": "找出很久没更新、或你已经很久没看的频道，一次批量取消订阅。所有数据只保存在你的浏览器中。" },
   "actionTitle": { "message": "打开 SubSweep" },
   "localeCode": { "message": "zh-CN" },
 
-  "tagline": { "message": "YouTube 订阅清理工具" },
+  "tagline": { "message": "适用于 YouTube 的订阅清理工具" },
   "tabChannels": { "message": "频道" },
   "tabRemoved": { "message": "已取消订阅" },
   "tabSettings": { "message": "设置" },

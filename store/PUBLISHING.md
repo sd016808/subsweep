@@ -176,7 +176,7 @@ No account, server or payment is involved; all data stays in chrome.storage.loca
 | 情況 | 對策 |
 | --- | --- |
 | 被要求說明為什麼需要 youtube.com 權限 | 引用第 5 步的權限說明；強調只在 youtube.com 執行、所有請求只送往 youtube.com |
-| 被質疑名稱使用 YouTube 商標 | 目前名稱是「SubSweep - YouTube Subscription Cleaner」。品牌是 SubSweep，YouTube 只是說明用途。說明中有「與 YouTube／Google 無關」的聲明，圖示和截圖也都沒用 YouTube 標誌。如果被退件，把 `_locales/*/messages.json` 的 `extName` 改成「SubSweep – Subscription Cleaner for YouTube」這種「for YouTube」寫法（YouTube 品牌規範比較認可的方式）再送審 |
+| 被質疑名稱使用 YouTube 商標 | 名稱採用「SubSweep – Subscription Cleaner for YouTube」這種「for YouTube」寫法：品牌是 SubSweep，YouTube 只說明適用平台、不放在名稱開頭，是 YouTube 品牌規範比較認可的方式；其他語言的名稱也都是「適用於 YouTube」的意思。說明中有「與 YouTube／Google 無關」的聲明，圖示和截圖也都沒用 YouTube 標誌。如果仍被質疑，把以上說明回覆給審查員 |
 | 被要求補充資料使用揭露 | 確認第 5 步的勾選和 `PRIVACY.md` 內容一致 |
 | 「功能與說明不符」 | 確認截圖和說明是最新版本（`npm run assets` 重新產生） |
 
