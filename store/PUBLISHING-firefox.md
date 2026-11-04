@@ -19,8 +19,11 @@ Firefox 版和 Chrome 版是**同一份程式碼**，只有 manifest 不同；`n
 
 ## 1. 註冊開發者帳號（只需一次，免費）
 
-1. 前往 <https://addons.mozilla.org/developers/>，用 Mozilla 帳號登入（沒有的話當場註冊）。
-2. 第一次提交時，依畫面指示同意開發者協議，並設定開發者顯示名稱（會顯示在商店頁面上）。
+1. 前往 <https://addons.mozilla.org/developers/>，按頁面右上角「**Register**」註冊 Mozilla 帳號（有帳號就按「Log in」）。
+2. **開啟兩步驟驗證（必要）**：Mozilla 規定上架附加元件的帳號一定要開啟兩步驟驗證，沒開的話登入時會被導到帳號設定頁要求開啟。
+   - 手機先裝一個驗證器 App，例如 Google Authenticator 或 Microsoft Authenticator，掃描畫面上的 QR code。
+   - **一定要把「復原碼（recovery codes）」存好**（印出來或存在密碼管理器）。手機遺失又沒有復原碼的話，Mozilla 無法幫你救回帳號，附加元件也就再也不能更新。
+3. 第一次提交時，依畫面指示同意開發者協議，並設定開發者顯示名稱（會顯示在商店頁面上）。
 
 ---
 
@@ -37,8 +40,8 @@ Firefox 版和 Chrome 版是**同一份程式碼**，只有 manifest 不同；`n
 
 ## 3. 上傳套件
 
-1. Developer Hub →「**Submit a New Add-on**」→ 選第 2 步的發布方式。
-2. 上傳 `dist/subsweep-firefox-<版本>.zip`。
+1. Developer Hub →「**Submit Your First Add-on**」（之後是「Submit a New Add-on」）→ 選第 2 步的發布方式 →「Continue」。
+2. 按「Select a file」上傳 `dist/subsweep-firefox-<版本>.zip`（注意是 **firefox** 的 zip，不是 chrome 的）。
 3. 相容平台：勾 **Firefox**（電腦版），**不要勾 Firefox for Android**。手機上的 YouTube 是另一個網站（m.youtube.com），SubSweep 目前還不支援。
 4. 自動檢查結果應該是 **0 個錯誤、1 個警告**。這個警告是說「最低版本對 Android 不適用」，因為我們不支援 Android，可以忽略。
 5. 「**Do you need to submit source code?**」→ 選 **No**。SubSweep 沒有經過壓縮、打包或轉譯，上傳的檔案就是原始碼。
@@ -53,7 +56,9 @@ Firefox 版和 Chrome 版是**同一份程式碼**，只有 manifest 不同；`n
 | Add-on URL | 建議 `subsweep`，商店網址會是 `https://addons.mozilla.org/firefox/addon/subsweep/`（被用走的話改 `subsweep-youtube`） |
 | Summary（摘要） | **自動**從 manifest 帶入 |
 | Description（說明） | 貼 [`listing/en.md`](listing/en.md) 的「Description」區塊 |
-| Categories（類別） | **Photos, Music & Videos**（相片、音樂與影片） |
+| Experimental（實驗性） | **不要勾**（勾了會降低曝光） |
+| Payment（需要付費） | **不要勾**（SubSweep 完全免費） |
+| Categories（類別） | Firefox 類別最多選 2 個：**Photos, Music & Videos**（相片、音樂與影片），第二個可選 **Social & Communication**。Android 類別不用選 |
 | Support email | `sd016808@gmail.com` |
 | Support website | 可空白 |
 | License（授權） | 不打算開源就選 **All Rights Reserved**；想開源可選 MIT |
@@ -93,7 +98,7 @@ TECHNICAL NOTES
 
 ## 6. 送出與審核
 
-按「Submit Version」送出。
+按「Submit Version」送出，會看到「Version Submitted」頁面並收到確認信。
 
 - 選「On this site」：通過自動檢查、Mozilla 簽署後就會上架，通常很快。Mozilla 之後仍可能人工審查；如果有問題，會寄信到你的帳號信箱說明要修改的地方。
 - 選「On your own」：簽署完成後，在 Developer Hub 的版本頁面下載 `.xpi`，傳給使用者安裝。
