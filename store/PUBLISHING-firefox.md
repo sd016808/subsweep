@@ -109,12 +109,18 @@ TECHNICAL NOTES
 
 1. 修改程式碼，把 `extension/manifest.json` 的 `version` 加一（Chrome 和 Firefox 共用版本號，**每次上傳都必須比上一版大**）。
 2. 執行 `npm run package`，會同時產生 Chrome 和 Firefox 的 zip。
-3. Developer Hub →「My Add-ons」→ SubSweep →「**Upload New Version**」→ 上傳 `dist/subsweep-firefox-<版本>.zip`。
+3. 上傳 `dist/subsweep-firefox-<版本>.zip`。下面的網址會**直接**打開公開版或自行發布版的上傳頁，不會走錯：
+   - 公開版（On this site）：<https://addons.mozilla.org/developers/addon/subsweep/versions/submit/upload-listed>
+   - 自行發布版（On your own）：<https://addons.mozilla.org/developers/addon/subsweep/versions/submit/upload-unlisted>
+
+   （`subsweep` 是第 4 步設定的 Add-on URL，改過的話換成你設定的名稱。）
+
+> 注意：SubSweep 頁面上的「**Upload New Version**」按鈕**不會問發布方式**，會自動沿用**最近一個版本**的發布方式。所以傳過自行發布版之後，下一次按這個按鈕上傳的也會是自行發布版，**不會**送到商店審核。用上面的網址最保險。
 
 ### 商店審核期間先給朋友用
 
 1. 把 `extension/manifest.json` 的 `version` 加一。**AMO 上每個版本號只能用一次，公開版和自行發布版共用**，所以不能和審核中的版本相同。
-2. `npm run package` → My Add-ons → SubSweep →「**Upload New Version**」→ 第一步「How to Distribute this Version」選「**On your own**」→ 上傳 Firefox 的 zip。**不要**用「Submit a New Add-on」：那是建立另一個附加元件用的，會出現「發現重複的附加元件 ID」。
+2. `npm run package` → 打開上面「自行發布版」的網址 → 上傳 Firefox 的 zip。**不要**用「Submit a New Add-on」：那是建立另一個附加元件用的，會出現「發現重複的附加元件 ID」。
 3. 自動檢查通過就會簽署（通常幾分鐘，不用等人工審核），到版本頁面下載 `.xpi` 傳給朋友。朋友把它拖進 Firefox 視窗就能安裝，重開也不會消失。
 4. 下次公開發布的版本號要比這個自行發布版大，例如審核中 1.0.0、自行發布 1.0.1，下一個公開版就用 1.0.2。商店上的公開版只要版本比較新，Firefox 就會**自動**把朋友裝的自行發布版更新過去，資料保留，因為兩者是同一個附加元件 ID。
 
@@ -134,4 +140,4 @@ Firefox 版的附加元件 ID 是 `subsweep@sd016808.github.io`，設定在 [`to
 | 質疑名稱使用 YouTube 商標 | 名稱是「SubSweep – Subscription Cleaner for YouTube」的「for YouTube」寫法：品牌是 SubSweep，YouTube 只說明適用的網站。說明中也聲明與 YouTube／Google 無關 |
 | 要求提供原始碼 | 回覆上傳的檔案本身就是未經處理的原始碼（沒有壓縮、打包或轉譯） |
 | 要求在 Android 上測試 | 回覆目前只支援 Firefox 電腦版，並確認上傳時沒有勾選 Android |
-| 上傳時出現「Duplicate add-on ID found／發現重複的附加元件 ID」 | 你是從「Submit a New Add-on」上傳的，那是建立**另一個**附加元件用的。新版本要從 My Add-ons → SubSweep →「**Upload New Version**」上傳，公開版和自行發布版都一樣 |
+| 上傳時出現「Duplicate add-on ID found／發現重複的附加元件 ID」 | 你是從「Submit a New Add-on」上傳的，那是建立**另一個**附加元件用的。新版本要用第 7 步的網址上傳 |
