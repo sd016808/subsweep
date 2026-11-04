@@ -20,3 +20,5 @@ First release.
 - Keep list, CSV export, optional Google Takeout watch-history import.
 - Light/dark theme following YouTube; English, 繁體中文, 简体中文, 日本語, 한국어.
 - All data stored locally per YouTube account; no servers, analytics or remote code.
+- Runs in Chrome / Edge (111+) and Firefox desktop (140+) from the same code; `npm run package` builds a package for each store. Firefox declares no data collection.
+- Data that YouTube's page hands to the extension is copied before use (Firefox isolates page objects from content scripts).

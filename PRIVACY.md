@@ -25,7 +25,7 @@ If you choose to import a Google Takeout `watch-history.json` file, the extensio
 
 ### What the extension stores
 
-The following is saved with `chrome.storage.local`, **only on your device**:
+The following is saved in the browser's extension storage (`storage.local`), **only on your device**:
 
 - your settings;
 - the results of your last scan (subscribed channels, latest upload dates, last-watched dates and watch counts per channel);
@@ -84,7 +84,7 @@ SubSweep 只在 `www.youtube.com` 上執行，而且只有在你開啟面板並�
 
 ### 本擴充功能會儲存的資料
 
-以下資料透過 `chrome.storage.local` **只儲存在你的裝置上**：
+以下資料透過瀏覽器的擴充功能儲存空間（`storage.local`）**只儲存在你的裝置上**：
 
 - 你的設定；
 - 上次掃描的結果（訂閱頻道、各頻道最新上傳日期、最後觀看日期與觀看次數）；

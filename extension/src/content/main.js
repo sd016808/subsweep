@@ -16,7 +16,9 @@
 
   NS.Panel.boot();
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  const ext = NS.util.api();
+
+  ext.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message || NS.retired) return false;
     if (message.type === 'subsweep:toggle') NS.Panel.toggle();
     else if (message.type === 'subsweep:open') NS.Panel.open();
@@ -26,7 +28,7 @@
   });
 
   // Ask the background whether this tab was opened from the toolbar button.
-  chrome.runtime
+  ext.runtime
     .sendMessage({ type: 'subsweep:ready' })
     .then((response) => {
       if (response && response.open) NS.Panel.open();

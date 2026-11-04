@@ -48,7 +48,7 @@
     removed: [],
   });
 
-  const area = () => chrome.storage.local;
+  const area = () => NS.util.api().storage.local;
 
   function sanitizeSettings(raw) {
     const settings = { ...DEFAULTS };
@@ -79,7 +79,12 @@
     const input = `subsweep:${rawId || 'default'}`;
     if (globalThis.crypto && crypto.subtle) {
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
-      return Array.from(new Uint8Array(digest).slice(0, 12), (b) => b.toString(16).padStart(2, '0')).join('');
+      // Byte by byte: in a Firefox content script the digest belongs to the page, and
+      // typed-array methods such as slice() on it are blocked.
+      const bytes = new Uint8Array(digest);
+      let hex = '';
+      for (let i = 0; i < 12; i++) hex += bytes[i].toString(16).padStart(2, '0');
+      return hex;
     }
     let hash = 0;
     for (let i = 0; i < input.length; i++) hash = (Math.imul(31, hash) + input.charCodeAt(i)) | 0;

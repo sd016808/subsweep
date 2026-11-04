@@ -27,8 +27,10 @@
     const entry = pending.get(data.id);
     pending.delete(data.id);
     clearTimeout(entry.timer);
-    if (data.error) entry.reject(new SweepError('network', data.error));
-    else entry.resolve(data.result);
+    if (data.error) entry.reject(new SweepError('network', String(data.error)));
+    // Work on our own copy: in Firefox the posted data belongs to the page (slower to read,
+    // some operations on it are blocked, and the page could change it afterwards).
+    else entry.resolve(typeof structuredClone === 'function' ? structuredClone(data.result) : data.result);
   });
 
   function bridge(op, payload, timeoutMs = 45000) {

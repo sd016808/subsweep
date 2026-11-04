@@ -93,10 +93,19 @@
     if (failure) throw failure;
   }
 
+  /**
+   * The extension API with promise-returning methods: `browser` in Firefox (and newer
+   * Chrome), otherwise `chrome`.
+   */
+  function api() {
+    return globalThis.browser ?? globalThis.chrome;
+  }
+
   /** False once the extension was reloaded/updated and this copy of the script is orphaned. */
   function contextAlive() {
     try {
-      return Boolean(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
+      const ext = api();
+      return Boolean(ext && ext.runtime && ext.runtime.id);
     } catch {
       return false;
     }
@@ -215,6 +224,7 @@
     addDays,
     monthsAgo,
     pool,
+    api,
     contextAlive,
     t,
     fmt,

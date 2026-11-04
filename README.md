@@ -2,11 +2,12 @@
 
 <img src="store/assets/icon-128.png" width="72" align="right" alt="">
 
-Chrome／Edge 瀏覽器擴充功能：列出你訂閱的 YouTube 頻道，找出**很久沒更新**、或你**很久沒看**的頻道，勾選後一次批次退訂。
+Chrome／Edge／Firefox 瀏覽器擴充功能：列出你訂閱的 YouTube 頻道，找出**很久沒更新**、或你**很久沒看**的頻道，勾選後一次批次退訂。
 
 - 不使用任何付費 API，也不需要申請 Google Cloud 專案
 - 不需要使用者匯出 Takeout（但可以選擇匯入當備用方案）
 - 所有資料只存在使用者的瀏覽器裡
+- 同一份程式碼支援 Chrome／Edge（111 以上）和 Firefox 電腦版（140 以上）
 - 介面支援 5 種語言（English、繁體中文、简体中文、日本語、한국어），依瀏覽器語言自動切換
 - 支援淺色／深色主題（跟隨 YouTube 的主題設定）
 
@@ -17,8 +18,8 @@ Chrome／Edge 瀏覽器擴充功能：列出你訂閱的 YouTube 頻道，找出
 ## 目錄結構
 
 ```
-extension/                    ← 插件本體（打包上傳的就是這個資料夾）
-  manifest.json
+extension/                    ← 插件本體（Chrome／Edge 可以直接載入這個資料夾）
+  manifest.json               Chrome 用的 manifest；Firefox 版由打包工具自動轉換（tools/lib/targets.mjs）
   _locales/<語言>/messages.json   5 種語言的介面文字
   icons/                      工具列圖示（由 npm run assets 產生）
   src/background.js           工具列按鈕：開關面板／開啟 YouTube
@@ -28,17 +29,18 @@ extension/                    ← 插件本體（打包上傳的就是這個資�
     parse.js                  解析 YouTube 回應（純函式，有測試）
     filters.js                篩選、排序、CSV 匯出（純函式，有測試）
     youtube.js                讀訂閱、觀看紀錄、最新上傳；退訂／重新訂閱
-    store.js                  chrome.storage.local 讀寫
+    store.js                  storage.local 讀寫
     app.js                    狀態與流程：掃描、批次退訂、復原、匯入匯出
     panel.js                  介面（Shadow DOM，不會和 YouTube 的樣式互相干擾）
     styles.js / icons.js      樣式與圖示
     main.js                   進入點
 store/
-  PUBLISHING.md               ★ 上架步驟與後台要貼的文字
+  PUBLISHING.md               ★ Chrome 線上應用程式商店：上架步驟與後台要貼的文字
+  PUBLISHING-firefox.md       ★ Firefox Add-ons：上架步驟與後台要貼的文字
   listing/<語言>.md           各語言的商店說明
   assets/                     商店圖示、截圖、宣傳圖（由 npm run assets 產生）
-tests/                        單元測試（node:test）
-tools/                        截圖／素材產生、打包、煙霧測試
+tests/                        單元測試（node:test）；browser/ 瀏覽器測試；smoke-hooks/ Firefox 煙霧測試用的掛鉤（不會打包進正式版）
+tools/                        截圖／素材產生、打包、煙霧測試；lib/chrome.mjs、lib/firefox.mjs 是無頭瀏覽器的控制程式
 PRIVACY.md                    隱私權政策（英文＋繁中）；網頁版由 npm run privacy 產生
 ```
 
@@ -49,7 +51,7 @@ PRIVACY.md                    隱私權政策（英文＋繁中）；網頁版�
 | 功能 | 資料來源 |
 | --- | --- |
 | 訂閱清單 | YouTube「所有訂閱內容」頁面使用的內部請求（`browse` / `FEchannels`） |
-| 頻道最後上傳時間 | 頻道的公開 RSS（`/feeds/videos.xml`），失敗時改讀頻道的「影片」分頁 |
+| 頻道最後上傳時間 | 頻道的公開 RSS（`/feeds/videos.xml`），失敗時改讀頻道的「影片」分頁（2026 年 11 月測試時 YouTube 的 RSS 全面回傳 404，目前實際上都走「影片」分頁） |
 | 最後觀看時間 | YouTube「觀看記錄」頁面使用的內部請求（`browse` / `FEhistory`），依日期標題判斷每部影片是哪天看的 |
 | 退訂／重新訂閱 | 和你在 YouTube 按「取消訂閱」時送出的請求相同（`subscription/unsubscribe`） |
 
@@ -84,7 +86,7 @@ PRIVACY.md                    隱私權政策（英文＋繁中）；網頁版�
 
 ## 開發
 
-需要 **Node.js 22 以上**（只用到內建模組，不需要 `npm install`）和 Chrome。
+需要 **Node.js 22 以上**（只用到內建模組，不需要 `npm install`）和 Chrome。有安裝 Firefox 的話，測試和打包也會一併在 Firefox 執行。
 
 ### 在 Chrome 載入插件
 
@@ -95,18 +97,29 @@ PRIVACY.md                    隱私權政策（英文＋繁中）；網頁版�
 
 修改程式碼後：在 `chrome://extensions` 按 SubSweep 的重新載入按鈕，再**重新整理 YouTube 分頁**。
 
+### 在 Firefox 載入插件
+
+1. 執行 `npm run build`，產生 `dist/firefox/`（Firefox 用的 manifest 和 Chrome 不同，所以不能直接載入 `extension` 資料夾）
+2. 在 Firefox 網址列輸入 `about:debugging` →「**This Firefox（這個 Firefox）**」
+3. 點「**Load Temporary Add-on…（載入暫時附加元件）**」，選 `dist/firefox/manifest.json`
+4. 開啟 <https://www.youtube.com>，點工具列上的 SubSweep 圖示（在「擴充套件」拼圖按鈕裡，可以釘選到工具列）
+
+暫時載入的附加元件**關掉 Firefox 就會消失**，只適合開發測試。要給別人長期使用，必須經過 Mozilla 簽署，請看 [`store/PUBLISHING-firefox.md`](store/PUBLISHING-firefox.md)。修改程式碼後：重新執行 `npm run build`，在 `about:debugging` 按 SubSweep 的「重新載入」，再重新整理 YouTube 分頁。
+
 ### 常用指令
 
 | 指令 | 用途 |
 | --- | --- |
 | `npm test` | 單元測試：解析器、篩選邏輯、5 種語言的翻譯是否一致、商店字數限制、manifest 檔案是否齊全 |
-| `npm run test:browser` | 瀏覽器測試（無頭 Chrome + 假的 YouTube）：暫停後續掃、重新整理後續掃、存檔位置失效時從頭讀、擴大範圍只補讀多出來的月份、觀看紀錄與上傳同時進行、快速模式的 3 種批次情境、分頁在背景時批次退訂、重新整理後接續未完成的退訂 |
+| `npm run test:browser` | 瀏覽器測試（無頭瀏覽器 + 假的 YouTube）。預設用 Chrome；`npm run test:browser -- firefox` 用 Firefox，`-- all` 兩個都跑。內容：暫停後續掃、重新整理後續掃、存檔位置失效時從頭讀、擴大範圍只補讀多出來的月份、觀看紀錄與上傳同時進行、快速模式的 3 種批次情境、分頁在背景時批次退訂、重新整理後接續未完成的退訂 |
 | `npm run lint` | 檢查所有 JS 語法和 JSON 格式 |
 | `npm run assets` | 用無頭 Chrome 產生圖示、5 種語言的商店截圖和宣傳圖 |
-| `npm run package` | 跑完檢查與測試後打包成 `dist/subsweep-<版本>.zip` |
+| `npm run build` | 產生可直接載入的未封裝版本：`dist/chrome/`、`dist/firefox/` |
+| `npm run package` | 跑完檢查與測試（有安裝 Firefox 時，瀏覽器測試也會在 Firefox 跑一次）後打包：`dist/subsweep-chrome-<版本>.zip`、`dist/subsweep-firefox-<版本>.zip` |
 | `npm run privacy` | 從 `PRIVACY.md` 產生隱私權政策網頁到 `site/`（只在本機，可以先預覽） |
 | `npm run privacy:publish` | 產生網頁並發布到 GitHub Pages：<https://sd016808.github.io/subsweep-privacy/>（需要已登入的 `gh`） |
-| `node tools/smoke-test.mjs` | 在**真正的 YouTube**（未登入狀態）上載入插件並檢查：manifest、工具列按鈕的 3 種情況（切到現有分頁且不重新整理、在 YouTube 分頁開關面板、沒有 YouTube 分頁時開首頁）、橋接、讀取頻道上傳時間、面板 |
+| `npm run smoke:firefox` | 同下一列，但在無頭 Firefox 用 Firefox 版測試（以暫時附加元件安裝，加上只供測試用的掛鉤） |
+| `npm run smoke` | 在**真正的 YouTube**（未登入狀態）上載入插件並檢查：manifest、工具列按鈕的 3 種情況（切到現有分頁且不重新整理、在 YouTube 分頁開關面板、沒有 YouTube 分頁時開首頁）、橋接、讀取頻道上傳時間、面板 |
 
 `npm run assets` 可以加參數只產生一部分，例如：
 `node tools/build-assets.mjs --only=screens --locales=zh_TW --scenarios=list,dark`
@@ -142,6 +155,9 @@ PRIVACY.md                    隱私權政策（英文＋繁中）；網頁版�
    - [ ] YouTube 切換成深色主題後，重新開啟面板也變成深色
    - [ ] 「匯出 CSV」能用 Excel 開啟，中文沒有亂碼
    - [ ]（選做）切換 Chrome 顯示語言（設定 → 語言），確認介面跟著改變
+6. **Firefox**（用「在 Firefox 載入插件」的方式載入）：
+   - [ ] 在 Firefox 登入 YouTube，重做第 1 項「掃描」和第 2 項的第一個退訂測試，結果和 Chrome 一樣
+   - [ ] 工具列按鈕的 3 種情況（第 4 項）都正常
 
 有任何一項不正常，把畫面截圖和 DevTools Console 的錯誤訊息（開頭是 `[SubSweep]`）提供給我，就能針對 YouTube 實際的回應格式修正。
 
@@ -165,10 +181,14 @@ PRIVACY.md                    隱私權政策（英文＋繁中）；網頁版�
 - **背景分頁**：退訂進行中可以切到其他分頁，不會卡住，只是稍微變慢。實測 12 個頻道：前景約 18.6 秒、背景約 34 秒，背景數字還包含測試用假 YouTube 的額外延遲。原因是退訂流程每次都等 YouTube 回應後才排下一次等待，不屬於 Chrome 會壓到「每分鐘一次」的那種連鎖計時器。
 - **分頁被關閉或被 Chrome 自動卸載**：批次退訂剩下的頻道清單在每處理完一個就會存檔。下次開啟 SubSweep 會出現「上次的批次退訂被中斷了」提示，可以繼續或放棄。使用者自己按「停止」則不會留下提示。
 - **觀看紀錄**：使用者如果暫停或自動刪除觀看紀錄，「很久沒看」只能依據現有的紀錄判斷。插件會顯示紀錄涵蓋的日期範圍。
-- **Firefox**：目前的 manifest 針對 Chrome／Edge。要支援 Firefox（包含 Android 版）需要把 background 改成 `scripts` 形式，並針對手機版網頁 m.youtube.com 做額外適配。
+- **Firefox**：支援 Firefox 電腦版 140 以上（目前的延伸支援版 ESR）。Firefox 的內容腳本和網頁之間有額外的安全隔離，SubSweep 收到 YouTube 的回應後會先複製一份自己的資料再處理，避免被這層隔離擋住。
+- **Firefox Android 版**：尚未支援。手機上的 YouTube 是另一個網站（m.youtube.com），介面和內部請求都不同，需要另外適配；上架 Firefox Add-ons 時請不要勾選 Android。
 
 ---
 
 ## 上架
 
-請看 [`store/PUBLISHING.md`](store/PUBLISHING.md)。
+- Chrome 線上應用程式商店（Edge 也可以用同一個 zip）：[`store/PUBLISHING.md`](store/PUBLISHING.md)
+- Firefox Add-ons：[`store/PUBLISHING-firefox.md`](store/PUBLISHING-firefox.md)
+
+兩邊可以共用同一個隱私權政策網址、商店說明和截圖。

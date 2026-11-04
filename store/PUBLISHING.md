@@ -13,7 +13,7 @@
 - [ ] 隱私權政策已發布到公開網址，而且打得開（見第 3 步）
 - [ ] 版本號正確（`extension/manifest.json` 的 `version`）
 - [ ] 執行 `npm run assets` 重新產生圖示和截圖（UI 有改過時）
-- [ ] 執行 `npm run package` 產生 `dist/subsweep-<版本>.zip`
+- [ ] 執行 `npm run package` 產生 `dist/subsweep-chrome-<版本>.zip`
 
 ---
 
@@ -36,7 +36,7 @@
    ```
    npm run package
    ```
-   會先跑語法檢查和全部測試，通過後產生 `dist/subsweep-1.0.0.zip`。
+   會先跑語法檢查和全部測試，通過後產生 `dist/subsweep-chrome-1.0.0.zip`（Chrome／Edge 用）和 `dist/subsweep-firefox-1.0.0.zip`（Firefox 用，見 [PUBLISHING-firefox.md](PUBLISHING-firefox.md)）。
 2. Developer Dashboard →「**New item（新增項目）**」→ 上傳這個 zip。
 
 ---
@@ -169,7 +169,7 @@ No account, server or payment is involved; all data stays in chrome.storage.loca
 同一個 zip 可以直接上架 Edge 附加元件商店：
 
 1. 到 <https://partner.microsoft.com/dashboard/microsoftedge> 註冊（免費）。
-2. 上傳 `dist/subsweep-<版本>.zip`。
+2. 上傳 `dist/subsweep-chrome-<版本>.zip`。
 3. 商店說明、截圖、隱私權政策都可以沿用本資料夾的檔案。
 
 ---

@@ -1,5 +1,5 @@
 /*
- * SubSweep — background service worker.
+ * SubSweep — background script (a service worker in Chrome, an event page in Firefox).
  *
  * Toolbar button:
  *   1. On a YouTube tab → open/close the panel right there.
@@ -10,17 +10,21 @@
  */
 'use strict';
 
+// Promise-returning extension API: `browser` in Firefox (and newer Chrome), else `chrome`.
+const ext = globalThis.browser ?? globalThis.chrome;
+
+const YOUTUBE_ACCESS = { origins: ['https://www.youtube.com/*'] };
 const YOUTUBE_TAB = /^https:\/\/www\.youtube\.com\//;
 const YOUTUBE_HOME = 'https://www.youtube.com/';
 const PENDING_KEY = 'pendingOpenTabs';
 
 async function getPending() {
-  const stored = await chrome.storage.session.get(PENDING_KEY);
+  const stored = await ext.storage.session.get(PENDING_KEY);
   return Array.isArray(stored[PENDING_KEY]) ? stored[PENDING_KEY] : [];
 }
 
 async function setPending(list) {
-  await chrome.storage.session.set({ [PENDING_KEY]: list });
+  await ext.storage.session.set({ [PENDING_KEY]: list });
 }
 
 async function markPending(tabId) {
@@ -47,18 +51,18 @@ function withTimeout(promise, ms) {
 
 /** Injects SubSweep's own packaged content scripts into an already-open YouTube tab. */
 async function inject(tabId) {
-  const scripts = chrome.runtime.getManifest().content_scripts;
+  const scripts = ext.runtime.getManifest().content_scripts;
   const main = scripts.find((cs) => cs.world === 'MAIN');
   const isolated = scripts.find((cs) => cs.world !== 'MAIN');
   // The page has finished loading long ago, so there is no need to wait for "idle".
-  if (main) await chrome.scripting.executeScript({ target: { tabId }, files: main.js, world: 'MAIN', injectImmediately: true });
-  await chrome.scripting.executeScript({ target: { tabId }, files: isolated.js, injectImmediately: true });
+  if (main) await ext.scripting.executeScript({ target: { tabId }, files: main.js, world: 'MAIN', injectImmediately: true });
+  await ext.scripting.executeScript({ target: { tabId }, files: isolated.js, injectImmediately: true });
 }
 
 /** Shows the panel in a YouTube tab; returns false if that wasn't possible. */
 async function showPanel(tabId, type) {
   try {
-    await chrome.tabs.sendMessage(tabId, { type });
+    await ext.tabs.sendMessage(tabId, { type });
     return true;
   } catch {
     // No SubSweep in this tab yet (opened before install/update).
@@ -66,14 +70,14 @@ async function showPanel(tabId, type) {
   try {
     // Never let the toolbar button hang: injection into a tab that isn't visible yet can wait.
     await withTimeout(inject(tabId), INJECT_TIMEOUT_MS);
-    await chrome.tabs.sendMessage(tabId, { type: 'subsweep:open' });
+    await ext.tabs.sendMessage(tabId, { type: 'subsweep:open' });
     return true;
   } catch {
     // Injection not possible or too slow: reload as a last resort.
   }
   try {
     await markPending(tabId);
-    await chrome.tabs.reload(tabId);
+    await ext.tabs.reload(tabId);
     return true;
   } catch {
     return false;
@@ -82,7 +86,7 @@ async function showPanel(tabId, type) {
 
 /** The best already-open YouTube tab: same window first, not playing sound, most recently used. */
 async function findYouTubeTab(current) {
-  const tabs = await chrome.tabs.query({ url: 'https://www.youtube.com/*' });
+  const tabs = await ext.tabs.query({ url: 'https://www.youtube.com/*' });
   if (!tabs.length) return null;
   const score = (tab) => (current && tab.windowId === current.windowId ? 2 : 0) + (tab.audible ? 0 : 1);
   tabs.sort((a, b) => score(b) - score(a) || (b.lastAccessed || 0) - (a.lastAccessed || 0));
@@ -95,20 +99,27 @@ async function handleClick(tab) {
   }
   const existing = await findYouTubeTab(tab);
   if (existing) {
-    await chrome.tabs.update(existing.id, { active: true });
-    await chrome.windows.update(existing.windowId, { focused: true });
+    await ext.tabs.update(existing.id, { active: true });
+    if (ext.windows) await ext.windows.update(existing.windowId, { focused: true }); // no windows on Android
     if (await showPanel(existing.id, 'subsweep:open')) return 'existing';
   }
-  const created = await chrome.tabs.create({ url: YOUTUBE_HOME });
+  const created = await ext.tabs.create({ url: YOUTUBE_HOME });
   if (created && created.id != null) await markPending(created.id);
   return 'new';
 }
 
-chrome.action.onClicked.addListener((tab) => {
-  handleClick(tab).catch((error) => console.warn('[SubSweep]', error));
+ext.action.onClicked.addListener((tab) => {
+  // Access to youtube.com can be withdrawn by the user (Firefox: Add-ons → Permissions;
+  // Chrome: Site access). Asking again needs the click itself, so this must happen before
+  // anything is awaited. When access is already granted it answers at once, without a prompt.
+  ext.permissions
+    .request(YOUTUBE_ACCESS)
+    .catch(() => true) // couldn't ask: just try
+    .then((granted) => (granted ? handleClick(tab) : null))
+    .catch((error) => console.warn('[SubSweep]', error));
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+ext.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || message.type !== 'subsweep:ready' || !sender.tab || sender.tab.id == null) return false;
   consumePending(sender.tab.id)
     .then((open) => sendResponse({ open }))
@@ -116,7 +127,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true; // keep the channel open for the async response
 });
 
-chrome.tabs.onRemoved.addListener((tabId) => {
+ext.tabs.onRemoved.addListener((tabId) => {
   consumePending(tabId).catch(() => {});
 });
 
