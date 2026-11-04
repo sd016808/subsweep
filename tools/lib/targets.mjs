@@ -11,9 +11,12 @@ export const TARGETS = ['chrome', 'firefox'];
 // Firefox add-on ID. Never change it after the first upload to addons.mozilla.org:
 // Firefox uses it to recognise updates.
 export const GECKO_ID = 'subsweep@sd016808.github.io';
-// 140 = current Extended Support Release; also the first version with the built-in
-// data-collection consent (data_collection_permissions).
-export const FIREFOX_MIN_VERSION = '140.0';
+// The built-in data-collection consent (data_collection_permissions) arrived in Firefox
+// 140 on desktop and 142 on Android. AMO's validator warns when the minimum version is
+// below 142, even for a desktop-only add-on. A gecko_android key can't fix that, because
+// AMO lists any add-on that has one as available on Android, and SubSweep doesn't support
+// Android (m.youtube.com).
+export const FIREFOX_MIN_VERSION = '142.0';
 
 export function readManifest() {
   return JSON.parse(fs.readFileSync(path.join(EXT, 'manifest.json'), 'utf8'));

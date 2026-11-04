@@ -43,7 +43,7 @@ Firefox 版和 Chrome 版是**同一份程式碼**，只有 manifest 不同；`n
 1. Developer Hub →「**Submit Your First Add-on**」（之後是「Submit a New Add-on」）→ 選第 2 步的發布方式 →「Continue」。
 2. 按「Select a file」上傳 `dist/subsweep-firefox-<版本>.zip`（注意是 **firefox** 的 zip，不是 chrome 的）。
 3. 相容平台：勾 **Firefox**（電腦版），**不要勾 Firefox for Android**。手機上的 YouTube 是另一個網站（m.youtube.com），SubSweep 目前還不支援。
-4. 自動檢查結果應該是 **0 個錯誤、1 個警告**。這個警告是說「最低版本對 Android 不適用」，因為我們不支援 Android，可以忽略。
+4. 自動檢查結果應該是 **0 個錯誤、0 個警告**。如果出現「"strict_min_version" requires Firefox for Android 140…」的警告，代表上傳的是 1.0.0 的舊 zip，請重新執行 `npm run package`。
 5. 「**Do you need to submit source code?**」→ 選 **No**。SubSweep 沒有經過壓縮、打包或轉譯，上傳的檔案就是原始碼。
 
 ---

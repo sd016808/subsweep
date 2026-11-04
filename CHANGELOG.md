@@ -4,6 +4,8 @@
 
 Same code as 1.0.0, with a new version number: AMO uses each version number only once per add-on (listed and self-distributed together), and 1.0.0 is in store review. 1.0.1 is the signed, self-distributed Firefox build for testers. The next store release is 1.0.2 or higher.
 
+- Firefox: the minimum version is now 142 (was 140). Firefox for Android only understands the no-data-collection declaration from 142, and AMO's validator warned about it. The add-on is still desktop-only.
+
 ## 1.0.0 — 2026-11-04
 
 First release.

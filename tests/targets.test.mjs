@@ -21,6 +21,9 @@ test('the Firefox manifest uses a background script, a fixed add-on ID and decla
   assert.match(gecko.strict_min_version, /^\d+\.0$/);
   assert.ok(Number.parseInt(gecko.strict_min_version, 10) >= 128, 'world: "MAIN" content scripts need Firefox 128+');
   assert.deepEqual(gecko.data_collection_permissions, { required: ['none'] });
+  // Below 142, AMO's validator warns that Firefox for Android doesn't know data_collection_permissions.
+  assert.ok(Number.parseInt(gecko.strict_min_version, 10) >= 142, 'data_collection_permissions needs Firefox (Android) 142+');
+  assert.equal(firefox.browser_specific_settings.gecko_android, undefined, 'AMO lists any add-on with gecko_android as available on Android');
   // Everything else is the same as in Chrome.
   for (const key of ['name', 'version', 'permissions', 'host_permissions', 'content_scripts', 'action', 'icons', 'default_locale']) {
     assert.deepEqual(firefox[key], chrome[key], key);
