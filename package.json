@@ -14,6 +14,7 @@
     "smoke": "node tools/smoke-test.mjs",
     "smoke:firefox": "node tools/smoke-test-firefox.mjs",
     "privacy": "node tools/build-privacy-page.mjs",
+    "video": "node tools/video/make-video.mjs",
     "privacy:publish": "node tools/publish-privacy.mjs"
   },
   "engines": {

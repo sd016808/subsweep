@@ -192,6 +192,15 @@ export async function launch(options = {}) {
         fs.writeFileSync(file, Buffer.from(data, 'base64'));
       },
       close: () => cdp.send('Target.closeTarget', { targetId }),
+      /** Raw DevTools protocol access for this tab (e.g. screencasts, bindings). */
+      send: call,
+      on(method, handler) {
+        const listener = (message) => {
+          if (message.sessionId === sessionId && message.method === method) handler(message.params);
+        };
+        cdp.listeners.add(listener);
+        return () => cdp.listeners.delete(listener);
+      },
     };
   }
 

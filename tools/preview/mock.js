@@ -98,6 +98,9 @@
     ...(resubscribed ? { resubscribedAt: now - ageMs + 600000 } : {}),
   }));
 
+  // The raw channel list, for tools/video/demo-backend.js (a scan the promo video records).
+  window.__MOCK = { CHANNELS, avatar, id, subscriberText };
+
   window.__MOCK_FULL_ACCOUNT = {
     v: 1,
     subs,
