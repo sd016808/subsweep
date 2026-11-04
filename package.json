@@ -8,7 +8,9 @@
     "test:browser": "node --test --test-concurrency=1 \"tests/browser/*.test.mjs\"",
     "lint": "node tools/check-syntax.mjs",
     "assets": "node tools/build-assets.mjs",
-    "package": "node tools/package.mjs"
+    "package": "node tools/package.mjs",
+    "privacy": "node tools/build-privacy-page.mjs",
+    "privacy:publish": "node tools/publish-privacy.mjs"
   },
   "engines": {
     "node": ">=20"

@@ -39,7 +39,7 @@ store/
   assets/                     商店圖示、截圖、宣傳圖（由 npm run assets 產生）
 tests/                        單元測試（node:test）
 tools/                        截圖／素材產生、打包、煙霧測試
-PRIVACY.md                    隱私權政策（英文＋繁中）
+PRIVACY.md                    隱私權政策（英文＋繁中）；網頁版由 npm run privacy 產生
 ```
 
 ---
@@ -104,6 +104,8 @@ PRIVACY.md                    隱私權政策（英文＋繁中）
 | `npm run lint` | 檢查所有 JS 語法和 JSON 格式 |
 | `npm run assets` | 用無頭 Chrome 產生圖示、5 種語言的商店截圖和宣傳圖 |
 | `npm run package` | 跑完檢查與測試後打包成 `dist/subsweep-<版本>.zip` |
+| `npm run privacy` | 從 `PRIVACY.md` 產生隱私權政策網頁到 `site/`（只在本機，可以先預覽） |
+| `npm run privacy:publish` | 產生網頁並發布到 GitHub Pages：<https://sd016808.github.io/subsweep-privacy/>（需要已登入的 `gh`） |
 | `node tools/smoke-test.mjs` | 在**真正的 YouTube**（未登入狀態）上載入插件並檢查：manifest、工具列按鈕的 3 種情況（切到現有分頁且不重新整理、在 YouTube 分頁開關面板、沒有 YouTube 分頁時開首頁）、橋接、讀取頻道上傳時間、面板 |
 
 `npm run assets` 可以加參數只產生一部分，例如：

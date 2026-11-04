@@ -59,7 +59,7 @@ If this policy changes, the new version will be published at this address with a
 
 ### Contact
 
-Questions about this policy: **[your contact email]**
+Questions about this policy: **[sd016808@gmail.com](mailto:sd016808@gmail.com)**
 
 SubSweep is not affiliated with, endorsed by or sponsored by YouTube or Google. YouTube is a trademark of Google LLC.
 
@@ -118,6 +118,6 @@ SubSweep 並非以 13 歲以下兒童為對象，也不會在知情的情況下�
 
 ### 聯絡方式
 
-對本政策有任何疑問：**[你的聯絡信箱]**
+對本政策有任何疑問：**[sd016808@gmail.com](mailto:sd016808@gmail.com)**
 
 SubSweep 與 YouTube 或 Google 沒有任何關係，也未獲得其認可或贊助。YouTube 是 Google LLC 的商標。

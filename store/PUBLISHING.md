@@ -9,8 +9,8 @@
 ## 0. 上架前檢查清單
 
 - [ ] 用自己的 YouTube 帳號跑完 README 的手動測試，全部正常
-- [ ] `PRIVACY.md` 裡的 **[your contact email]／[你的聯絡信箱]** 已換成你的信箱
-- [ ] 隱私權政策已放到公開網址（見第 3 步）
+- [x] `PRIVACY.md` 裡的聯絡信箱已填好（sd016808@gmail.com）
+- [ ] 隱私權政策已發布到公開網址，而且打得開（見第 3 步）
 - [ ] 版本號正確（`extension/manifest.json` 的 `version`）
 - [ ] 執行 `npm run assets` 重新產生圖示和截圖（UI 有改過時）
 - [ ] 執行 `npm run package` 產生 `dist/subsweep-<版本>.zip`
@@ -43,13 +43,16 @@
 
 ## 3. 準備隱私權政策網址
 
-商店要求一個**公開**的隱私權政策網址。內容已經寫好在 [`PRIVACY.md`](../PRIVACY.md)（英文＋繁中）。任選一種方式放上網：
+商店要求一個**公開**的隱私權政策網址。內容寫在 [`PRIVACY.md`](../PRIVACY.md)（英文＋繁中），用 GitHub Pages 發布成網頁：
 
-- **GitHub**：把專案推到公開 repo，直接使用 `PRIVACY.md` 的網址；或開 GitHub Pages。
-- **Google 協作平台（Google Sites）**：新增一個頁面，把 `PRIVACY.md` 的內容貼上，發布。
-- 你自己的網站。
+```
+npm run privacy:publish
+```
 
-> 填之前記得把 `[your contact email]` 換成真正的聯絡信箱。
+- 會從 `PRIVACY.md` 產生網頁（`site/`），推到**另一個只放這個網頁的公開 repo** `sd016808/subsweep-privacy`，第一次執行時會自動建立 repo 並開啟 GitHub Pages。插件的原始碼不會被公開。
+- 需要先安裝並登入 GitHub CLI（`gh auth login`）。
+- 網址：**<https://sd016808.github.io/subsweep-privacy/>**（第一次發布後約 1～2 分鐘才打得開，貼到後台前先用瀏覽器確認）。
+- 以後修改 `PRIVACY.md`，再執行一次同一個指令就會更新網頁（記得也更新檔案開頭的「Last updated」日期）。只想在本機預覽網頁：`npm run privacy`，再打開 `site/index.html`。
 
 ---
 
@@ -64,8 +67,8 @@
 | Screenshots | `store/assets/<語言>/screenshot-1 ~ 5`（1280×800），依編號順序上傳 |
 | Small promo tile | `store/assets/<語言>/promo-small-440x280.png`（選填，但有的話排序較前面） |
 | Marquee promo tile | `store/assets/<語言>/marquee-1400x560.png`（選填，被精選時才會用到） |
-| Official URL / Homepage | 有 GitHub repo 或網站就填，沒有可空白 |
-| Support URL | 建議填 GitHub Issues 或聯絡表單 |
+| Official URL / Homepage | 可空白；或填隱私權政策網址 <https://sd016808.github.io/subsweep-privacy/> |
+| Support URL | 可空白；使用者可以在商店頁面的「支援」分頁留言，或寫信到隱私權政策上的信箱 |
 
 名稱和摘要會**自動**從 `_locales/*/messages.json` 的 `extName`、`extDescription` 帶入，不用另外填。
 
@@ -121,7 +124,7 @@ SubSweep only works on YouTube and does not run on any other site. On www.youtub
 
 ### Privacy policy URL
 
-填第 3 步準備好的網址。
+填 <https://sd016808.github.io/subsweep-privacy/>（第 3 步發布的網址）。
 
 ---
 
