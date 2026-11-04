@@ -134,3 +134,4 @@ Firefox 版的附加元件 ID 是 `subsweep@sd016808.github.io`，設定在 [`to
 | 質疑名稱使用 YouTube 商標 | 名稱是「SubSweep – Subscription Cleaner for YouTube」的「for YouTube」寫法：品牌是 SubSweep，YouTube 只說明適用的網站。說明中也聲明與 YouTube／Google 無關 |
 | 要求提供原始碼 | 回覆上傳的檔案本身就是未經處理的原始碼（沒有壓縮、打包或轉譯） |
 | 要求在 Android 上測試 | 回覆目前只支援 Firefox 電腦版，並確認上傳時沒有勾選 Android |
+| 上傳時出現「Duplicate add-on ID found／發現重複的附加元件 ID」 | 你是從「Submit a New Add-on」上傳的，那是建立**另一個**附加元件用的。新版本要從 My Add-ons → SubSweep →「**Upload New Version**」上傳，公開版和自行發布版都一樣 |
