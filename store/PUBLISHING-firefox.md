@@ -53,7 +53,7 @@ Firefox 版和 Chrome 版是**同一份程式碼**，只有 manifest 不同；`n
 | 欄位 | 填什麼 |
 | --- | --- |
 | Name（名稱） | **自動**從 manifest 帶入：SubSweep – Subscription Cleaner for YouTube（AMO 名稱上限 50 字，沒有超過） |
-| Add-on URL | 建議 `subsweep`，商店網址會是 `https://addons.mozilla.org/firefox/addon/subsweep/`（被用走的話改 `subsweep-youtube`） |
+| Add-on URL | 已設定為 `subsweep-for-youtube`，商店網址：<https://addons.mozilla.org/firefox/addon/subsweep-for-youtube/> |
 | Summary（摘要） | **自動**從 manifest 帶入 |
 | Description（說明） | 貼 [`listing/en.md`](listing/en.md) 的「Description」區塊 |
 | Experimental（實驗性） | **不要勾**（勾了會降低曝光） |
@@ -110,10 +110,10 @@ TECHNICAL NOTES
 1. 修改程式碼，把 `extension/manifest.json` 的 `version` 加一（Chrome 和 Firefox 共用版本號，**每次上傳都必須比上一版大**）。
 2. 執行 `npm run package`，會同時產生 Chrome 和 Firefox 的 zip。
 3. 上傳 `dist/subsweep-firefox-<版本>.zip`。下面的網址會**直接**打開公開版或自行發布版的上傳頁，不會走錯：
-   - 公開版（On this site）：<https://addons.mozilla.org/developers/addon/subsweep/versions/submit/upload-listed>
-   - 自行發布版（On your own）：<https://addons.mozilla.org/developers/addon/subsweep/versions/submit/upload-unlisted>
+   - 公開版（On this site）：<https://addons.mozilla.org/developers/addon/subsweep-for-youtube/versions/submit/upload-listed>
+   - 自行發布版（On your own）：<https://addons.mozilla.org/developers/addon/subsweep-for-youtube/versions/submit/upload-unlisted>
 
-   （`subsweep` 是第 4 步設定的 Add-on URL，改過的話換成你設定的名稱。）
+   （網址中的 `subsweep-for-youtube` 是第 4 步設定的 Add-on URL。）
 
 > 注意：SubSweep 頁面上的「**Upload New Version**」按鈕**不會問發布方式**，會自動沿用**最近一個版本**的發布方式。所以傳過自行發布版之後，下一次按這個按鈕上傳的也會是自行發布版，**不會**送到商店審核。用上面的網址最保險。
 
