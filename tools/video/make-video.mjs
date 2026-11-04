@@ -73,8 +73,8 @@ const VOICE =
         ? args.voice
         : `${LANG}-${args.voice || 'HsiaoChen'}Neural`
       : args.voice || 'Yating';
-// Neural voices already speak at a natural pace; the built-in ones are slow.
-const RATE = Number(args.rate || { breezy: 1, azure: 1.05, windows: 1.15 }[TTS]);
+// Speaking speed (1 = the voice's own). BreezyVoice speaks slowly; the built-in Windows voices too.
+const RATE = Number(args.rate || { breezy: 2, azure: 1.05, windows: 1.15 }[TTS]);
 
 /** The recording BreezyVoice imitates, and what is said in it. */
 function breezyReference() {
@@ -114,14 +114,16 @@ const ssml = (text) =>
   (TTS === 'azure' ? '</voice>' : '') +
   '</speak>';
 
+/** File name of a voice clip: the same text, voice and speed always give the same name. */
+const clipName = (say, rate) => `${crypto.createHash('sha1').update(`${TTS}|${VOICE}|${rate}|${say}`).digest('hex').slice(0, 16)}.wav`;
+
 const lines = SCRIPT.scenes.flatMap((scene) =>
   scene.lines.map((line, i) => {
-    const hash = crypto.createHash('sha1').update(`${TTS}|${VOICE}|${RATE}|${line.say}`).digest('hex').slice(0, 16);
     return {
       key: `${scene.id}.${i}`,
       say: line.say,
       show: line.show ?? line.say.replace(/[，。；、,;]+$/u, ''),
-      file: path.join(TTS_DIR, `${hash}.wav`),
+      file: path.join(TTS_DIR, clipName(line.say, RATE)),
     };
   }),
 );
@@ -176,7 +178,8 @@ function synthesizeBreezy(todo) {
   // One folder per reference voice; lines already spoken (e.g. before an interruption) are kept.
   const work = path.join(OUT, 'breezy', VOICE);
   fs.mkdirSync(work, { recursive: true });
-  const rawOf = (line) => path.join(work, path.basename(line.file));
+  // Clips at the voice's own speed; --rate is applied afterwards, so changing it needs no new speech.
+  const rawOf = (line) => path.join(work, clipName(line.say, 1));
   // The reference: 16 kHz mono, at most 20 s.
   const prompt = path.join(work, 'reference.wav');
   run('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-i', REF.audio, '-ac', '1', '-ar', '16000', '-t', '20', prompt]);
