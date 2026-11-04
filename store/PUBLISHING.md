@@ -36,7 +36,7 @@
    ```
    npm run package
    ```
-   會先跑語法檢查和全部測試，通過後產生 `dist/subsweep-chrome-1.0.0.zip`（Chrome／Edge 用）和 `dist/subsweep-firefox-1.0.0.zip`（Firefox 用，見 [PUBLISHING-firefox.md](PUBLISHING-firefox.md)）。
+   會先跑語法檢查和全部測試，通過後產生 `dist/subsweep-chrome-<版本>.zip`（Chrome／Edge 用）和 `dist/subsweep-firefox-<版本>.zip`（Firefox 用，見 [PUBLISHING-firefox.md](PUBLISHING-firefox.md)）。
 2. Developer Dashboard →「**New item（新增項目）**」→ 上傳這個 zip。
 
 ---
