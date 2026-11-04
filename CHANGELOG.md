@@ -8,6 +8,7 @@ First release.
 - Reads YouTube watch history to show when each channel was last watched; incremental re-scans.
 - Scans can be paused and resumed: watch history is checkpointed after every page (own small storage key), a recent subscription list is reused and checked channels are skipped; an expired saved position falls back to a full read.
 - Watch history and latest-upload checks run at the same time; uploads are checked 6 at a time; shorter pauses between pages.
+- When YouTube's channel feeds (RSS) are unavailable, a scan stops requesting them after 5 failures in a row and reads the Videos tab directly; every new scan tries the feeds again.
 - Widening the watch-history range only reads the extra months (the end position of the previous read is kept).
 - An outdated copy left running in a tab after an update stops and asks for a page refresh.
 - Filters: Suggested, Not uploading, Not watching, Both, All, Kept; adjustable periods (1–36 months); search and sorting.

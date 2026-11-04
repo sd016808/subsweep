@@ -51,7 +51,7 @@ PRIVACY.md                    隱私權政策（英文＋繁中）；網頁版�
 | 功能 | 資料來源 |
 | --- | --- |
 | 訂閱清單 | YouTube「所有訂閱內容」頁面使用的內部請求（`browse` / `FEchannels`） |
-| 頻道最後上傳時間 | 頻道的公開 RSS（`/feeds/videos.xml`），失敗時改讀頻道的「影片」分頁（2026 年 11 月測試時 YouTube 的 RSS 全面回傳 404，目前實際上都走「影片」分頁） |
+| 頻道最後上傳時間 | 頻道的公開 RSS（`/feeds/videos.xml`），失敗時改讀頻道的「影片」分頁。2026 年 11 月測試時 YouTube 的 RSS 全面回傳 404：同一次掃描中 RSS 連續失敗 5 次，剩下的頻道就直接讀「影片」分頁，不再浪費請求；每次新的掃描都會重新試 RSS，YouTube 恢復後自動改回使用 |
 | 最後觀看時間 | YouTube「觀看記錄」頁面使用的內部請求（`browse` / `FEhistory`），依日期標題判斷每部影片是哪天看的 |
 | 退訂／重新訂閱 | 和你在 YouTube 按「取消訂閱」時送出的請求相同（`subscription/unsubscribe`） |
 
@@ -111,7 +111,7 @@ PRIVACY.md                    隱私權政策（英文＋繁中）；網頁版�
 | 指令 | 用途 |
 | --- | --- |
 | `npm test` | 單元測試：解析器、篩選邏輯、5 種語言的翻譯是否一致、商店字數限制、manifest 檔案是否齊全 |
-| `npm run test:browser` | 瀏覽器測試（無頭瀏覽器 + 假的 YouTube）。預設用 Chrome；`npm run test:browser -- firefox` 用 Firefox，`-- all` 兩個都跑。內容：暫停後續掃、重新整理後續掃、存檔位置失效時從頭讀、擴大範圍只補讀多出來的月份、觀看紀錄與上傳同時進行、快速模式的 3 種批次情境、分頁在背景時批次退訂、重新整理後接續未完成的退訂 |
+| `npm run test:browser` | 瀏覽器測試（無頭瀏覽器 + 假的 YouTube）。預設用 Chrome；`npm run test:browser -- firefox` 用 Firefox，`-- all` 兩個都跑。內容：暫停後續掃、重新整理後續掃、存檔位置失效時從頭讀、擴大範圍只補讀多出來的月份、觀看紀錄與上傳同時進行、RSS 失效時自動停用（下次掃描再試）、快速模式的 3 種批次情境、分頁在背景時批次退訂、重新整理後接續未完成的退訂 |
 | `npm run lint` | 檢查所有 JS 語法和 JSON 格式 |
 | `npm run assets` | 用無頭 Chrome 產生圖示、5 種語言的商店截圖和宣傳圖 |
 | `npm run build` | 產生可直接載入的未封裝版本：`dist/chrome/`、`dist/firefox/` |

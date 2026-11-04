@@ -511,12 +511,13 @@
     S.scan.uploadsDone = S.data.subsOrder.length - ids.length;
     emit('scan');
     let sinceRefresh = 0;
+    const feeds = YT.feedTracker(); // stops asking for channel feeds while YouTube doesn't serve them
     await pool(
       ids,
       UPLOAD_CONCURRENCY,
       async (id) => {
         try {
-          const upload = await YT.fetchLastUpload(id, { signal });
+          const upload = await YT.fetchLastUpload(id, { signal, feeds });
           S.data.uploads[id] = { ...upload, checkedAt: Date.now() };
         } catch (error) {
           if (isAbort(error)) throw error;

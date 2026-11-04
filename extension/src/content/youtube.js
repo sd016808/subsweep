@@ -149,25 +149,52 @@
     return { reachedEnd: false, edge: null };
   }
 
+  // YouTube's channel feeds (RSS) are sometimes unavailable for everyone (every request
+  // answers 404). After this many failures in a row, the rest of a scan stops asking for them.
+  const FEED_GIVE_UP_AFTER = 5;
+
+  /**
+   * Remembers, for one scan, whether the channel feeds work. Any feed that works resets
+   * the count, so a single broken channel doesn't switch them off; each scan starts with a
+   * new tracker, so feeds are tried again as soon as YouTube serves them again.
+   */
+  function feedTracker() {
+    let failuresInARow = 0;
+    return {
+      get usable() {
+        return failuresInARow < FEED_GIVE_UP_AFTER;
+      },
+      worked() {
+        failuresInARow = 0;
+      },
+      failed() {
+        failuresInARow++;
+      },
+    };
+  }
+
   /**
    * When a channel last published something. Uses the channel's public feed and
-   * falls back to the channel's Videos tab.
+   * falls back to the channel's Videos tab. Pass the scan's `feeds` tracker to skip the
+   * feed once it is known not to work.
    * → { t: ms|null, none: boolean, src: 'feed'|'page' }
    */
-  async function fetchLastUpload(channelId, { signal } = {}) {
+  async function fetchLastUpload(channelId, { signal, feeds = null } = {}) {
     let feedSaysEmpty = false;
-    try {
-      const response = await fetch(`${location.origin}/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`, {
-        credentials: 'omit',
-        signal,
-      });
-      if (response.ok) {
-        const feed = P.parseFeed(await response.text());
+    if (!feeds || feeds.usable) {
+      try {
+        const response = await fetch(`${location.origin}/feeds/videos.xml?channel_id=${encodeURIComponent(channelId)}`, {
+          credentials: 'omit',
+          signal,
+        });
+        const feed = response.ok ? P.parseFeed(await response.text()) : { valid: false };
+        if (feeds) feeds[feed.valid ? 'worked' : 'failed']();
         if (feed.valid && feed.latest != null) return { t: feed.latest, none: false, src: 'feed' };
         feedSaysEmpty = feed.valid && feed.count === 0;
+      } catch (error) {
+        if (isAbort(error)) throw error;
+        if (feeds) feeds.failed();
       }
-    } catch (error) {
-      if (isAbort(error)) throw error;
     }
 
     try {
@@ -206,5 +233,5 @@
   }
 
   // `request` is exposed for diagnostics (tools/smoke-test.mjs).
-  NS.YT = { config, request: call, fetchSubscriptions, fetchHistory, fetchLastUpload, unsubscribe, unsubscribeMany, subscribe };
+  NS.YT = { config, request: call, fetchSubscriptions, fetchHistory, feedTracker, fetchLastUpload, unsubscribe, unsubscribeMany, subscribe };
 })();

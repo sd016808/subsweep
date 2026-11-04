@@ -16,7 +16,7 @@ import { createZip } from './lib/zip.mjs';
 import { EXT, ROOT, TARGETS, packageEntries, readManifest } from './lib/targets.mjs';
 
 const DIST = path.join(ROOT, 'dist');
-const BROWSER_TESTS = ['--test', '--test-concurrency=1', 'tests/browser/scan-resume.test.mjs', 'tests/browser/unsubscribe.test.mjs'];
+const BROWSER_TESTS = ['--test', '--test-concurrency=1', ...fs.readdirSync(path.join(ROOT, 'tests', 'browser')).filter((f) => f.endsWith('.test.mjs')).map((f) => `tests/browser/${f}`)];
 
 function run(label, args, env = {}) {
   console.log(`\n› ${label}`);
