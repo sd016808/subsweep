@@ -236,3 +236,141 @@ test('parseTakeoutHistory keeps real watches and skips ads and malformed rows', 
   assert.deepEqual(P.parseTakeoutHistory(json), [{ channelId: CH_A, date: Date.parse('2026-02-01T08:00:00.000Z') }]);
   assert.equal(P.parseTakeoutHistory({ not: 'an array' }), null);
 });
+
+test('parseHistoryPage counts live streams like any other video', () => {
+  const now = new Date(2026, 10, 4, 12).getTime();
+  const state = { now, date: now, recognized: false };
+  const page = {
+    contents: {
+      sectionListRenderer: {
+        contents: [
+          {
+            itemSectionRenderer: {
+              header: { itemSectionHeaderRenderer: { title: { simpleText: 'Today' } } },
+              contents: [
+                // A finished live stream (classic renderer) …
+                {
+                  videoRenderer: {
+                    videoId: 'aaaaaaaaaaa',
+                    publishedTimeText: { simpleText: 'Streamed 2 days ago' },
+                    badges: [{ metadataBadgeRenderer: { style: 'BADGE_STYLE_TYPE_LIVE_NOW', label: 'LIVE' } }],
+                    ownerText: { runs: [{ text: 'Owner', navigationEndpoint: { browseEndpoint: { browseId: CH_A } } }] },
+                  },
+                },
+                // … and one in the new lockup layout.
+                {
+                  lockupViewModel: {
+                    contentId: 'bbbbbbbbbbb',
+                    metadata: {
+                      lockupMetadataViewModel: {
+                        image: { decoratedAvatarViewModel: { rendererContext: { commandContext: { onTap: { innertubeCommand: { browseEndpoint: { browseId: CH_B } } } } } } },
+                        metadata: { contentMetadataViewModel: { metadataRows: [{ metadataParts: [{ text: { content: '74M views' } }, { text: { content: 'Streamed 3 months ago' } }] }] } },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  };
+  const today = new Date(2026, 10, 4).getTime();
+  assert.deepEqual(P.parseHistoryPage(page, state), [
+    { channelId: CH_A, date: today, videoId: 'aaaaaaaaaaa' },
+    { channelId: CH_B, date: today, videoId: 'bbbbbbbbbbb' },
+  ]);
+});
+
+test('parseHistoryPage lists every Short of a shelf, with the video id when the channel is missing', () => {
+  const now = new Date(2026, 10, 4, 12).getTime();
+  const state = { now, date: now, recognized: false };
+  // Shape modelled on the history page: a "Shorts" shelf with several items, none naming its channel.
+  const short = (videoId) => ({
+    shortsLockupViewModel: {
+      entityId: `shorts-shelf-item-${videoId}`,
+      accessibilityText: 'Title, 1M views - play Short',
+      onTap: { innertubeCommand: { reelWatchEndpoint: { videoId, overlay: { reelPlayerOverlayRenderer: { style: 'REEL_PLAYER_OVERLAY_STYLE_SHORTS' } } } } },
+      overlayMetadata: { primaryText: { content: 'Title' }, secondaryText: { content: '1M views' } },
+    },
+  });
+  // Older item kind; this one does name its channel (player overlay header).
+  const reel = (videoId, channelId) => ({
+    reelItemRenderer: {
+      videoId,
+      navigationEndpoint: {
+        reelWatchEndpoint: {
+          videoId,
+          overlay: { reelPlayerOverlayRenderer: { reelPlayerHeaderSupportedRenderers: { reelPlayerHeaderRenderer: { channelNavigationEndpoint: { browseEndpoint: { browseId: channelId } } } } } },
+        },
+      },
+    },
+  });
+  const video = {
+    videoRenderer: { videoId: 'ccccccccccc', ownerText: { runs: [{ text: 'Owner', navigationEndpoint: { browseEndpoint: { browseId: CH_C } } }] } },
+  };
+  const page = {
+    contents: {
+      sectionListRenderer: {
+        contents: [
+          {
+            itemSectionRenderer: {
+              header: { itemSectionHeaderRenderer: { title: { simpleText: 'Oct 12' } } },
+              contents: [video, { reelShelfRenderer: { title: { simpleText: 'Shorts' }, items: [short('aaaaaaaaaaa'), short('bbbbbbbbbbb'), reel('ddddddddddd', CH_A)] } }],
+            },
+          },
+        ],
+      },
+    },
+  };
+  const date = new Date(2026, 9, 12).getTime();
+  assert.deepEqual(P.parseHistoryPage(page, state), [
+    { channelId: CH_C, date, videoId: 'ccccccccccc' },
+    { channelId: null, date, videoId: 'aaaaaaaaaaa', short: true },
+    { channelId: null, date, videoId: 'bbbbbbbbbbb', short: true },
+    { channelId: CH_A, date, videoId: 'ddddddddddd', short: true },
+  ]);
+  assert.equal(P.countVideoItems(page), 4);
+});
+
+test('parseOwnerUrl reads the channel behind an oEmbed author URL', () => {
+  assert.deepEqual(P.parseOwnerUrl('https://www.youtube.com/@MrBeast'), { channelId: null, handle: '@MrBeast' });
+  assert.deepEqual(P.parseOwnerUrl('https://www.youtube.com/@%E6%88%B4%E5%BC%98%E5%AD%B8/videos'), { channelId: null, handle: '@戴弘學' });
+  assert.deepEqual(P.parseOwnerUrl(`https://www.youtube.com/channel/${CH_A}`), { channelId: CH_A, handle: '' });
+  assert.equal(P.parseOwnerUrl('https://www.youtube.com/user/legacy'), null);
+  assert.equal(P.parseOwnerUrl('https://evil.example/@MrBeast'), null);
+  assert.equal(P.parseOwnerUrl(undefined), null);
+});
+
+test('firstShortId and parsePublishDate read a Shorts tab and a player response', () => {
+  const tab = {
+    contents: {
+      richGridRenderer: {
+        contents: [
+          { richItemRenderer: { content: { shortsLockupViewModel: { entityId: 'shorts-shelf-item-aaaaaaaaaaa', onTap: { innertubeCommand: { reelWatchEndpoint: { videoId: 'aaaaaaaaaaa' } } } } } } },
+          { richItemRenderer: { content: { shortsLockupViewModel: { entityId: 'shorts-shelf-item-bbbbbbbbbbb', onTap: { innertubeCommand: { reelWatchEndpoint: { videoId: 'bbbbbbbbbbb' } } } } } } },
+        ],
+      },
+    },
+  };
+  assert.equal(P.firstShortId(tab), 'aaaaaaaaaaa');
+  assert.equal(P.firstShortId({ contents: [] }), null);
+  assert.equal(P.firstShortId(null), null);
+  const player = { videoDetails: { videoId: 'aaaaaaaaaaa' }, microformat: { playerMicroformatRenderer: { publishDate: '2026-11-06T09:00:02-08:00', uploadDate: '2026-11-06T09:00:02-08:00' } } };
+  assert.equal(P.parsePublishDate(player), Date.parse('2026-11-06T09:00:02-08:00'));
+  assert.equal(P.parsePublishDate({ microformat: { playerMicroformatRenderer: { uploadDate: '2026-11-06' } } }), Date.parse('2026-11-06'));
+  assert.equal(P.parsePublishDate({ playabilityStatus: { status: 'ERROR' } }), null);
+  assert.equal(P.parsePublishDate(null), null);
+});
+
+test('newestRelativeAge reads the Live tab (lockup metadata, "Streamed …")', () => {
+  const DAY = 86400000;
+  const live = {
+    contents: [
+      { lockupViewModel: { metadata: { lockupMetadataViewModel: { metadata: { contentMetadataViewModel: { metadataRows: [{ metadataParts: [{ text: { content: '74M views' } }, { text: { content: '3 months ago' }, accessibilityLabel: '3 months ago' }] }] } } } } } },
+      { lockupViewModel: { metadata: { lockupMetadataViewModel: { metadata: { contentMetadataViewModel: { metadataRows: [{ metadataParts: [{ text: { content: 'Streamed 2 years ago' } }] }] } } } } } },
+    ],
+  };
+  assert.equal(P.newestRelativeAge(live), Math.round(3 * 30.44 * DAY));
+});

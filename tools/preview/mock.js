@@ -110,6 +110,7 @@
     uploads,
     watch,
     history: { syncedAt: now - 2 * 3600000, months: 12, coverageFrom: now - 366 * DAY, reachedEnd: false, entries: 3480 },
+    watchVersion: window.__VERSION, // read by this very version: no "SubSweep was updated" notice
     historyError: null,
     takeout: null,
     kept: {},

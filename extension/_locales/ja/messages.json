@@ -89,6 +89,9 @@
   "noticeHistoryShort": { "message": "視聴履歴は {0} までしかないため、「見ていない」はその期間で判定されます。" },
   "noticeHistoryRescan": { "message": "視聴履歴は {0} までしか読み込まれていません。再スキャンするとさらに古い履歴を読み込みます。" },
   "noticeUnsubPending": { "message": "前回のまとめて登録解除は途中で中断されました。まだ {0} 件残っています。" },
+  "noticeUpdatedShorts": { "message": "SubSweep が更新されました。ショート動画とライブ配信が「最終視聴」と「最終アップロード」に含まれるようになりました。すでに視聴したショート動画も数えるには、再生履歴を一度読み直してください。" },
+  "rereadHistory": { "message": "今すぐ読み直す" },
+  "gotIt": { "message": "わかりました" },
 
   "selectedCount": { "message": "{0} 件選択中" },
   "clearSelection": { "message": "選択解除" },

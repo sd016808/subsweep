@@ -53,7 +53,8 @@ async function run(script) {
 }
 
 const SUMMARY = `({ watch: S.data.watch, entries: S.data.history && S.data.history.entries, reachedEnd: S.data.history && S.data.history.reachedEnd,
-  partial: S.data.historyPartial, finished: S.data.lastScanAt > 0, uploads: Object.keys(S.data.uploads).length })`;
+  partial: S.data.historyPartial, finished: S.data.lastScanAt > 0, uploads: Object.keys(S.data.uploads).length, watchVersion: S.data.watchVersion,
+  oembed: window.__log.filter((r) => r.startsWith('oembed:')).map((r) => r.slice(7)).sort() })`;
 
 let uninterrupted;
 
@@ -63,14 +64,58 @@ test('an uninterrupted scan reads all 6 history pages', async () => {
     return { ...${SUMMARY}, history: historyRequests() };
   `);
   assert.deepEqual(uninterrupted.history, ['FEhistory', 'T1', 'T2', 'T3', 'T4', 'T5']);
-  assert.equal(uninterrupted.entries, 8);
+  assert.equal(uninterrupted.entries, 9);
   assert.equal(uninterrupted.reachedEnd, true);
   assert.equal(uninterrupted.finished, true);
   assert.equal(uninterrupted.partial, null);
   assert.equal(uninterrupted.uploads, 4);
-  // A: today + 10 days + 300 days ago, B: today + 100 days ago, C: 40 days, D: 200 + 300 days
+  assert.equal(uninterrupted.watchVersion, '1.0.0', 'a full read records the extension version (the test stub says 1.0.0)');
+  // A: today + 10 days + 300 days ago, B: today + 100 days ago, C: 40 days, D: 200 + 300 days + a Short 40 days ago
   const counts = Object.fromEntries(Object.entries(uninterrupted.watch).map(([id, [, n]]) => [id.slice(2, 3), n]));
-  assert.deepEqual(counts, { a: 3, b: 2, c: 1, d: 2 });
+  assert.deepEqual(counts, { a: 3, b: 2, c: 1, d: 3 });
+});
+
+test('Shorts in the history count for their channel (looked up by handle)', () => {
+  // Page T2 (40 days ago) has three Shorts without a channel: every one is looked up …
+  assert.deepEqual(uninterrupted.oembed, ['shrt0000001', 'shrt0000002', 'shrt0000003']);
+  // … but only Delta's (author "@Delta" ↔ subscription handle "@delta") counts: the second is by a
+  // channel we don't subscribe to, the third was removed (HTTP 400).
+  const delta = Object.entries(uninterrupted.watch).find(([id]) => id.startsWith('UCd'))[1];
+  assert.equal(Math.floor((Date.now() - delta[0]) / 86400000), 40, 'Delta was last watched through that Short');
+});
+
+test('a video watched on the day of the previous scan, after it, is still counted', async () => {
+  const result = await run(`
+    await App.scan();
+    const before = JSON.parse(JSON.stringify(S.data.watch));
+    window.__todayExtra = ['UCcccccccccccccccccccccc']; // Gamma, last watched 40 days ago, now watched today
+    await App.scan();
+    return { before, after: S.data.watch, history: historyRequests() };
+  `);
+  const gamma = (watch) => watch.UCcccccccccccccccccccccc;
+  assert.deepEqual(result.history.slice(6), ['FEhistory', 'T1'], 'the second scan only reads the top');
+  assert.equal(gamma(result.before)[1], 1);
+  assert.equal(gamma(result.after)[1], 2, 'Gamma’s video from today is counted once');
+  assert.equal(Math.floor((Date.now() - gamma(result.after)[0]) / 86400000), 0, 'and is its last watch');
+  // Alpha and Beta were watched today before the first scan: those entries are not counted twice.
+  assert.equal(result.after.UCaaaaaaaaaaaaaaaaaaaaaa[1], 3);
+  assert.equal(result.after.UCbbbbbbbbbbbbbbbbbbbbbb[1], 2);
+});
+
+test('a channel left at "today · 0 videos" by an older version is counted by the next scan', async () => {
+  const result = await run(`
+    await App.scan();
+    // What versions before 1.0.3 stored for a channel first watched on the day of a scan, after it.
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    S.data.watch.UCcccccccccccccccccccccc = [today.getTime(), 0];
+    window.__todayExtra = ['UCcccccccccccccccccccccc'];
+    await App.scan();
+    const second = JSON.parse(JSON.stringify(S.data.watch.UCcccccccccccccccccccccc));
+    await App.scan();
+    return { second, third: S.data.watch.UCcccccccccccccccccccccc };
+  `);
+  assert.equal(result.second[1], 1, 'counted once');
+  assert.equal(result.third[1], 1, 'and not again by the scan after that');
 });
 
 test('a paused scan continues from the saved page instead of starting over', async () => {
@@ -130,10 +175,10 @@ test('pausing during the latest-upload step keeps the channels already checked',
     window.__INNERTUBE = original;
     window.__log.length = 0;
     await App.scan();
-    return { checkedBeforeResume, channelRequests: window.__log.filter((r) => r.startsWith('channel:')).length, history: historyRequests(), ...${SUMMARY} };
+    return { checkedBeforeResume, channelRequests: new Set(window.__log.filter((r) => r.startsWith('channel:')).map((r) => r.split(':')[1])).size, history: historyRequests(), ...${SUMMARY} };
   `);
   assert.equal(result.checkedBeforeResume, 3, 'channels checked before the pause were saved');
-  assert.equal(result.channelRequests, 1, 'only the unchecked channel is fetched again');
+  assert.equal(result.channelRequests, 1, 'only the unchecked channel is fetched again (its page, one request per tab)');
   assert.equal(result.uploads, 4);
   assert.equal(result.finished, true);
   // History runs alongside the uploads, so the pause may have caught it mid-way: it continues.

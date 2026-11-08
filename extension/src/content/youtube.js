@@ -13,7 +13,11 @@
 
   const REQUEST = 'subsweep:req';
   const RESPONSE = 'subsweep:res';
-  const VIDEOS_TAB = 'EgZ2aWRlb3PyBgQKAjoA'; // "Videos" tab of a channel page
+  // Tabs of a channel page (the `params` of a browse request). Videos, live streams and
+  // Shorts each have their own tab; a channel without such a tab answers with another one.
+  const VIDEOS_TAB = 'EgZ2aWRlb3PyBgQKAjoA';
+  const LIVE_TAB = 'EgdzdHJlYW1z8gYECgJ6AA%3D%3D';
+  const SHORTS_TAB = 'EgZzaG9ydHPyBgUKA5oBAA%3D%3D';
   const MAX_PAGES = 2000;
   // Lists are page chains (each page names the next), so they can't be fetched in
   // parallel; keep a short, polite pause between pages.
@@ -176,10 +180,12 @@
   }
 
   /**
-   * When a channel last published something. Uses the channel's public feed and
-   * falls back to the channel's Videos tab. Pass the scan's `feeds` tracker to skip the
-   * feed once it is known not to work.
-   * → { t: ms|null, none: boolean, src: 'feed'|'page' }
+   * When a channel last published something: a video, a live stream or a Short. Uses the
+   * channel's public feed (which lists all three) and falls back to the channel page: the
+   * Videos and Live tabs show dates; the Shorts tab shows none, so the newest Short's date
+   * is read from the player. Pass the scan's `feeds` tracker to skip the feed once it is
+   * known not to work.
+   * → { t: ms|null, none: boolean, src: 'feed'|'page'|'error' }
    */
   async function fetchLastUpload(channelId, { signal, feeds = null } = {}) {
     let feedSaysEmpty = false;
@@ -199,18 +205,55 @@
       }
     }
 
-    try {
-      let age = P.newestRelativeAge(await call('browse', { browseId: channelId, params: VIDEOS_TAB }, { hl: 'en', signal, retries: 1 }));
-      if (age == null) {
-        age = P.newestRelativeAge(await call('browse', { browseId: channelId }, { hl: 'en', signal, retries: 1 }));
+    // Channel page: one request per tab, the newest date wins. A request that fails is
+    // skipped: a single broken channel (terminated, region-locked…) must not stop the scan.
+    const now = Date.now();
+    let newest = null;
+    let answers = 0;
+    const consider = (t) => {
+      if (t != null && (newest == null || t > newest)) newest = t;
+    };
+    const ask = async (endpoint, body) => {
+      try {
+        const json = await call(endpoint, body, { hl: 'en', signal, retries: 1 });
+        answers++;
+        return json;
+      } catch (error) {
+        if (isAbort(error)) throw error;
+        return null;
       }
-      if (age != null) return { t: Date.now() - age, none: false, src: 'page' };
-      // Only call a channel empty when both sources agree; otherwise leave it unknown.
-      return { t: null, none: feedSaysEmpty, src: 'page' };
+    };
+    for (const params of [VIDEOS_TAB, LIVE_TAB]) {
+      const age = P.newestRelativeAge(await ask('browse', { browseId: channelId, params }));
+      if (age != null) consider(now - age);
+    }
+    const shortId = P.firstShortId(await ask('browse', { browseId: channelId, params: SHORTS_TAB }));
+    if (shortId) consider(P.parsePublishDate(await ask('player', { videoId: shortId })));
+    if (newest == null) {
+      const age = P.newestRelativeAge(await ask('browse', { browseId: channelId }));
+      if (age != null) consider(now - age);
+    }
+    if (newest != null) return { t: newest, none: false, src: 'page' };
+    if (!answers) return { t: null, none: false, src: 'error' };
+    // Only call a channel empty when both sources agree; otherwise leave it unknown.
+    return { t: null, none: feedSaysEmpty, src: 'page' };
+  }
+
+  /**
+   * Channel behind a video, from YouTube's public oEmbed data (the session is not sent).
+   * Used for Shorts in the watch history, which come without their channel.
+   * → { channelId: 'UC…'|null, handle: '@…'|'' }, or null (removed/private video, error)
+   */
+  async function fetchVideoOwner(videoId, { signal } = {}) {
+    try {
+      const target = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+      const response = await fetch(`${location.origin}/oembed?url=${encodeURIComponent(target)}&format=json`, { credentials: 'omit', signal });
+      if (!response.ok) return null;
+      const json = await response.json();
+      return P.parseOwnerUrl(json && json.author_url);
     } catch (error) {
       if (isAbort(error)) throw error;
-      // A single broken channel (terminated, region-locked…) must not stop the scan.
-      return { t: null, none: false, src: 'error' };
+      return null;
     }
   }
 
@@ -235,5 +278,5 @@
   }
 
   // `request` is exposed for diagnostics (tools/smoke-test.mjs).
-  NS.YT = { config, request: call, fetchSubscriptions, fetchHistory, feedTracker, fetchLastUpload, unsubscribe, unsubscribeMany, subscribe };
+  NS.YT = { config, request: call, fetchSubscriptions, fetchHistory, feedTracker, fetchLastUpload, fetchVideoOwner, unsubscribe, unsubscribeMany, subscribe };
 })();

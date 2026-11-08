@@ -1,7 +1,8 @@
 // Browser tests for the latest-upload step, against tests/browser/fake-youtube.js:
 // when YouTube's channel feeds (RSS) are down, a scan stops asking for them after a few
-// failures in a row and reads the channels' Videos tab directly; working feeds keep being
-// used, even if a few channels' feeds are broken; the next scan tries the feeds again.
+// failures in a row and reads the channel pages directly (Videos, Live and Shorts tabs);
+// working feeds keep being used, even if a few channels' feeds are broken; the next scan
+// tries the feeds again.
 // Run with: npm run test:browser
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -64,6 +65,8 @@ async function run(script) {
     return await page.evaluate(`(async () => {
       const App = SubSweep.App, S = App.state;
       const sources = () => Object.values(S.data.uploads).reduce((n, u) => ({ ...n, [u.src]: (n[u.src] || 0) + 1 }), {});
+      const channelPages = () => new Set(window.__log.filter((r) => r.startsWith('channel:')).map((r) => r.split(':')[1])).size;
+      const ages = () => [...new Set(Object.values(S.data.uploads).map((u) => Math.round((Date.now() - u.t) / 86400000)))];
       await App.init();
       ${script}
     })()`);
@@ -76,7 +79,7 @@ test('feeds down: the scan stops asking for them after a few failures and still 
   const result = await run(`
     window.__feeds = 'down';
     await App.scan();
-    return { feedRequests: window.__feedRequests, sources: sources(), channelPages: window.__log.filter((r) => r.startsWith('channel:')).length };
+    return { feedRequests: window.__feedRequests, sources: sources(), channelPages: channelPages() };
   `);
   t.diagnostic(`${result.feedRequests} feed requests for ${CHANNELS} channels (was ${CHANNELS} before)`);
   // 5 failures in a row switch the feeds off; requests already on their way (6 at a time) still finish.
@@ -89,7 +92,7 @@ test('feeds up: every channel is read from its feed (no extra Videos-tab request
   const result = await run(`
     window.__feeds = 'up';
     await App.scan();
-    return { feedRequests: window.__feedRequests, sources: sources(), channelPages: window.__log.filter((r) => r.startsWith('channel:')).length };
+    return { feedRequests: window.__feedRequests, sources: sources(), channelPages: channelPages() };
   `);
   assert.equal(result.feedRequests, CHANNELS);
   assert.deepEqual(result.sources, { feed: CHANNELS });
@@ -121,4 +124,37 @@ test('the next scan tries the feeds again (e.g. once YouTube serves them again)'
   assert.ok(result.firstRun <= 11);
   assert.equal(result.secondRun, CHANNELS);
   assert.deepEqual(result.sources, { feed: CHANNELS });
+});
+
+test('feeds down: a live stream newer than the last video counts as the latest upload', async () => {
+  const result = await run(`
+    window.__feeds = 'down';
+    window.__channelPage = { videos: '30 days ago', live: 'Streamed 10 days ago', shortsDays: null };
+    await App.scan();
+    return { ages: ages(), players: window.__log.filter((r) => r.startsWith('player:')).length };
+  `);
+  assert.deepEqual(result.ages, [10]);
+  assert.equal(result.players, 0, 'no Shorts, so the player is never asked');
+});
+
+test('feeds down: a Short newer than the last video or stream counts as the latest upload', async () => {
+  const result = await run(`
+    window.__feeds = 'down';
+    window.__channelPage = { videos: '30 days ago', live: 'Streamed 10 days ago', shortsDays: 1 };
+    await App.scan();
+    return { ages: ages(), players: window.__log.filter((r) => r.startsWith('player:')).length };
+  `);
+  assert.deepEqual(result.ages, [1], 'the Shorts tab shows no dates: the newest Short\'s date comes from the player');
+  assert.equal(result.players, CHANNELS);
+});
+
+test('feeds down: a channel that only posts Shorts still gets a date', async () => {
+  const result = await run(`
+    window.__feeds = 'down';
+    window.__channelPage = { videos: null, live: null, shortsDays: 2 };
+    await App.scan();
+    return { ages: ages(), sources: sources() };
+  `);
+  assert.deepEqual(result.ages, [2]);
+  assert.deepEqual(result.sources, { page: CHANNELS });
 });

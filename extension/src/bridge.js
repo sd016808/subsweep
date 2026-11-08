@@ -6,7 +6,8 @@
  * YouTube's own web app talks to its "youtubei" endpoints with the signed-in
  * session of the page. This small bridge lets SubSweep's content script make the
  * same requests YouTube's page makes when you open your subscriptions or history
- * page, or press "Unsubscribe". It only allows a fixed list of endpoints, never
+ * page, a channel page or a video, or press "Unsubscribe". It only allows a fixed list
+ * of endpoints, never
  * stores anything, and never sends data anywhere except www.youtube.com.
  */
 (() => {
@@ -17,7 +18,7 @@
 
   const REQUEST = 'subsweep:req';
   const RESPONSE = 'subsweep:res';
-  const ALLOWED_ENDPOINTS = new Set(['browse', 'subscription/subscribe', 'subscription/unsubscribe']);
+  const ALLOWED_ENDPOINTS = new Set(['browse', 'player', 'subscription/subscribe', 'subscription/unsubscribe']);
 
   function cfg(key) {
     try {

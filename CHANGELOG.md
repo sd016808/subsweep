@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.0.3 — 2026-11-08
 
+- After updating, users who scanned with an older version see a one-time notice in the panel: Shorts and live streams are now counted, with a button that re-reads the watch history in full (Shorts already in the history are only counted by a full re-read) and rechecks the latest uploads. "Got it" hides it.
+- Live streams and Shorts count as uploads when a channel's feed is unavailable: the channel-page fallback reads the Videos, Live and Shorts tabs (the Shorts tab shows no dates, so the newest Short's date is read from the player) instead of the Videos tab only.
+- Shorts in the watch history count for their channel. The history page lists them in a shelf without naming the channel, so each Short's channel is looked up (YouTube's public oEmbed data, without the session) and matched to the subscriptions by handle.
+- "0 years ago" fixed: a date exactly one year ago reads "1 year ago" (months and years are counted on the calendar).
+- A video watched later on the day of a scan is counted by the next scan (it used to update "Last watched" but not the count, showing e.g. "today · 0 videos" for a channel watched for the first time). Entries on that day are still skipped when the channel had already been watched that day, as they may have been counted.
 - Copyright notice at the top of every script; LICENSE (all rights reserved).
 
 ## 1.0.2 — 2026-11-04

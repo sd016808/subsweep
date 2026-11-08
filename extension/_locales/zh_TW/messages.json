@@ -89,6 +89,9 @@
   "noticeHistoryShort": { "message": "你的觀看紀錄最早只到 {0}，「很久沒看」會以這段期間判斷。" },
   "noticeHistoryRescan": { "message": "觀看紀錄目前只讀到 {0}。重新掃描即可讀取更早的紀錄。" },
   "noticeUnsubPending": { "message": "上次的批次退訂被中斷了，還有 {0} 個頻道沒處理。" },
+  "noticeUpdatedShorts": { "message": "SubSweep 更新了：Shorts 和直播現在會列入「最後觀看」與「最後上傳」。請重新讀取一次觀看紀錄，之前看過的 Shorts 才會算進去。" },
+  "rereadHistory": { "message": "立即重新讀取" },
+  "gotIt": { "message": "知道了" },
 
   "selectedCount": { "message": "已選取 {0} 個" },
   "clearSelection": { "message": "清除" },

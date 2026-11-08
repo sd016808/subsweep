@@ -72,6 +72,14 @@
     return d.getTime();
   };
 
+  /** Whole calendar months from `from` to `to` (local dates; Jan 31 → Feb 28 is 0). */
+  const monthsBetween = (from, to) => {
+    const a = new Date(from);
+    const b = new Date(to);
+    const months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+    return Math.max(0, b.getDate() < a.getDate() ? months - 1 : months);
+  };
+
   /**
    * Runs `worker` over `items` with at most `limit` in flight. If a worker throws,
    * no new items start and the error is rethrown once every running worker has
@@ -101,6 +109,15 @@
    */
   function api() {
     return globalThis.browser ?? globalThis.chrome;
+  }
+
+  /** Version of the running extension (from its manifest); '' when unavailable. */
+  function version() {
+    try {
+      return String(api().runtime.getManifest().version || '');
+    } catch {
+      return '';
+    }
   }
 
   /** False once the extension was reloaded/updated and this copy of the script is orphaned. */
@@ -178,8 +195,11 @@
       if (days < 1) return auto.format(0, 'day');
       if (days < 7) return auto.format(-days, 'day');
       if (days < 30) return always.format(-Math.floor(days / 7), 'week');
-      if (days < 365) return always.format(-Math.max(1, Math.floor(days / 30.44)), 'month');
-      return always.format(-Math.floor(days / 365.25), 'year');
+      // Calendar months, so Nov 8 → Nov 8 of the next year reads "1 year ago" (365 days divided
+      // by the average year length gave "0 years ago").
+      const months = monthsBetween(ms, now);
+      if (months < 12) return always.format(-Math.max(1, months), 'month');
+      return always.format(-Math.floor(months / 12), 'year');
     },
     /** Rough duration such as "about 3 minutes" (the "about" comes from the message). */
     duration(ms) {
@@ -225,8 +245,10 @@
     startOfDay,
     addDays,
     monthsAgo,
+    monthsBetween,
     pool,
     api,
+    version,
     contextAlive,
     t,
     fmt,

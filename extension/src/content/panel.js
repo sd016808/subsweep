@@ -451,6 +451,23 @@
         notice('warn', 'userMinus', t('noticeUnsubPending', fmt.num(pending.length)), [t('unsubContinue'), () => App.continueUnsub()], [t('unsubDiscard'), () => App.discardUnsub()]),
       );
     }
+    if (!S.scan && F.updateNotice(S.data)) {
+      items.push(
+        notice(
+          '',
+          'info',
+          t('noticeUpdatedShorts'),
+          [t('rereadHistory'), () => App.rescan({ fullHistory: true, recheckUploads: true })],
+          [
+            t('gotIt'),
+            () => {
+              App.dismissUpdateNotice();
+              renderNotices();
+            },
+          ],
+        ),
+      );
+    }
     const info = App.historyInfo();
     const error = S.data.historyError;
     if (!info.ready && error) {

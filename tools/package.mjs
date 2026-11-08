@@ -29,7 +29,7 @@ function run(label, args, env = {}) {
 
 if (!process.argv.includes('--skip-tests')) {
   run('Syntax check', ['tools/check-syntax.mjs']);
-  run('Tests', ['--test', 'tests/parse.test.mjs', 'tests/filters.test.mjs', 'tests/i18n.test.mjs', 'tests/targets.test.mjs']);
+  run('Tests', ['--test', 'tests/parse.test.mjs', 'tests/filters.test.mjs', 'tests/format.test.mjs', 'tests/i18n.test.mjs', 'tests/targets.test.mjs']);
   run('Browser tests (headless Chrome)', BROWSER_TESTS, { BROWSER: 'chrome' });
   if (hasFirefox()) run('Browser tests (headless Firefox)', BROWSER_TESTS, { BROWSER: 'firefox' });
   else console.log('\n(Firefox not installed: browser tests ran in Chrome only.)');

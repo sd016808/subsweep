@@ -8,7 +8,7 @@
   'use strict';
 
   const NS = globalThis.SubSweep;
-  const { t, fmt, sleep, jitter, pool, isAbort, abortError, contextAlive, startOfDay, monthsAgo, SweepError } = NS.util;
+  const { t, fmt, sleep, jitter, pool, isAbort, abortError, contextAlive, startOfDay, monthsAgo, version, SweepError } = NS.util;
   const YT = NS.YT;
   const Store = NS.Store;
   const F = NS.filters;
@@ -279,6 +279,7 @@
   const HISTORY_RESUME_MAX_AGE = 3 * 24 * 60 * 60 * 1000;
   const SUBS_RESUME_MAX_AGE = 6 * 60 * 60 * 1000;
   const UPLOAD_CONCURRENCY = 6;
+  const SHORTS_LOOKUP_CONCURRENCY = 6;
 
   /** What an unfinished scan left behind for the next one to continue. */
   function resumeState() {
@@ -343,7 +344,7 @@
     };
     if (mode === 'incremental') {
       base.cutoff = startOfDay(previous.syncedAt);
-      base.countAfter = base.cutoff; // the day of the previous read was already counted
+      base.countAfter = base.cutoff; // the day of the previous read was already counted (see readHistory)
     }
     if (mode === 'extend') {
       const edge = previous.edge || {};
@@ -368,18 +369,51 @@
     emit('scan');
   }
 
+  /**
+   * Shorts in the history come without their channel (only a video id). Looks each one up
+   * (public oEmbed data, one small request per Short) and matches the owner against the
+   * subscriptions by handle. `owners` caches the answers (video id → channel id or null)
+   * for the whole read; a Short whose channel can't be found keeps `channelId: null`.
+   */
+  async function resolveShorts(entries, owners, signal) {
+    const pending = entries.filter((entry) => !entry.channelId && entry.videoId);
+    if (!pending.length) return;
+    const byHandle = new Map();
+    for (const channel of Object.values(S.data.subs || {})) if (channel.handle) byHandle.set(channel.handle.toLowerCase(), channel.id);
+    const ids = [...new Set(pending.map((entry) => entry.videoId))].filter((id) => !owners.has(id));
+    await pool(
+      ids,
+      SHORTS_LOOKUP_CONCURRENCY,
+      async (id) => {
+        const owner = await YT.fetchVideoOwner(id, { signal });
+        owners.set(id, owner ? owner.channelId || byHandle.get(owner.handle.toLowerCase()) || null : null);
+      },
+      signal,
+    );
+    for (const entry of pending) entry.channelId = owners.get(entry.videoId) || null;
+  }
+
   /** Reads history pages for `partial`, saving progress after each one. */
   async function readHistory(partial, signal) {
     reportHistory(partial);
+    const owners = new Map();
     const result = await YT.fetchHistory({
       cutoff: partial.cutoff,
       signal,
       startToken: partial.token,
       state: partial.token ? { date: partial.date, recognized: partial.recognized } : null,
       onPage: async ({ entries, token, state }) => {
+        await resolveShorts(entries, owners, signal);
         for (const entry of entries) {
+          if (!entry.channelId) continue; // a Short whose channel could not be found
           if (partial.skipFrom != null && entry.date >= partial.skipFrom) continue;
-          addEntry(partial.watch, entry, partial.countAfter == null || entry.date > partial.countAfter);
+          // Entries on the day of the previous read may have been counted by it already (dates
+          // are whole days) — unless the channel's last watch is older than that day, or its
+          // count is still 0 (only skipped entries leave a date without a count): then nothing
+          // of this channel on that day has been counted yet.
+          const before = S.data.watch[entry.channelId];
+          const counted = partial.countAfter == null || entry.date > partial.countAfter || !before || entry.date > before[0] || before[1] === 0;
+          addEntry(partial.watch, entry, counted);
           partial.entries++;
           if (entry.date < partial.oldest) partial.oldest = entry.date;
         }
@@ -416,6 +450,7 @@
         entries: partial.entries,
         edge: partial.edge,
       };
+      S.data.watchVersion = version(); // a full read: everything this version can count is in
     }
     S.data.historyPartial = null;
   }
@@ -619,6 +654,12 @@
   function rescan(options) {
     setTab('channels');
     scan(options);
+  }
+
+  /** The user closed the "SubSweep was updated" notice: don't show it again. */
+  function dismissUpdateNotice() {
+    S.data.noticeSeen = F.SHORTS_SINCE;
+    saveSoon();
   }
 
   // ---------------------------------------------------------------- unsubscribing
@@ -974,6 +1015,7 @@
     scan,
     stopScan,
     rescan,
+    dismissUpdateNotice,
     askUnsubscribe,
     runUnsubscribe,
     pendingUnsub,

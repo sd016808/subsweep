@@ -135,3 +135,27 @@ test('toCsv escapes quotes, commas and spreadsheet formulas', () => {
   assert.ok(csv.includes(`"'=HYPERLINK(""x""), ""quoted"""`));
   assert.ok(csv.includes('https://www.youtube.com/channel/active'));
 });
+
+test('compareVersions orders version strings numerically', () => {
+  assert.equal(F.compareVersions('1.0.3', '1.0.3'), 0);
+  assert.equal(F.compareVersions('1.0.2', '1.0.3'), -1);
+  assert.equal(F.compareVersions('1.0.10', '1.0.3'), 1);
+  assert.equal(F.compareVersions('1.1', '1.0.9'), 1);
+  assert.equal(F.compareVersions('1.0', '1.0.0'), 0);
+  assert.equal(F.compareVersions('', '1.0.3'), -1);
+});
+
+test('updateNotice: shown once for a history read by a version before Shorts were counted', () => {
+  const history = { syncedAt: NOW, months: 6, coverageFrom: ago(180), reachedEnd: false, entries: 10 };
+  // Scanned with an older version (no watchVersion recorded at all).
+  assert.equal(F.updateNotice({ history, lastScanAt: NOW }), true);
+  assert.equal(F.updateNotice({ history, lastScanAt: NOW, watchVersion: '1.0.2' }), true);
+  // Read in full by this version or a later one.
+  assert.equal(F.updateNotice({ history, lastScanAt: NOW, watchVersion: F.SHORTS_SINCE }), false);
+  assert.equal(F.updateNotice({ history, lastScanAt: NOW, watchVersion: '2.0.0' }), false);
+  // Dismissed.
+  assert.equal(F.updateNotice({ history, lastScanAt: NOW, noticeSeen: F.SHORTS_SINCE }), false);
+  // Never scanned: nothing to re-read.
+  assert.equal(F.updateNotice({ history: null, lastScanAt: 0 }), false);
+  assert.equal(F.updateNotice({ history, lastScanAt: 0 }), false);
+});

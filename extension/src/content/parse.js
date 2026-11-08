@@ -121,6 +121,13 @@
     return id;
   }
 
+  const SHORT_KEYS = ['shortsLockupViewModel', 'reelItemRenderer'];
+
+  /** Shorts items anywhere under `root` (a Shorts shelf holds several), in document order. */
+  function shortsIn(root) {
+    return SHORT_KEYS.flatMap((key) => collect(root, key));
+  }
+
   function findToken(root) {
     let token = null;
     walk(root, (obj) => {
@@ -249,6 +256,9 @@
   /**
    * Extracts watched items from one history page. `state` carries the current
    * date across pages: { now, date, recognized }.
+   * → [{ channelId, date, videoId, short? }]. Shorts come in a shelf (several per item)
+   * and usually without their channel: they are listed one by one with `channelId: null`
+   * and their video id, so the channel can be looked up (YT.fetchVideoOwner).
    */
   function parseHistoryPage(json, state) {
     const entries = [];
@@ -262,6 +272,15 @@
       }
       const items = Array.isArray(section.contents) ? section.contents : [];
       for (const item of items) {
+        const shorts = shortsIn(item);
+        if (shorts.length) {
+          for (const short of shorts) {
+            const videoId = findVideoId(short);
+            const channelId = findChannelId(short);
+            if (videoId || channelId) entries.push({ channelId, date: state.date, videoId, short: true });
+          }
+          continue;
+        }
         const channelId = findChannelId(item);
         if (!channelId) continue;
         entries.push({ channelId, date: state.date, videoId: findVideoId(item) });
@@ -272,7 +291,7 @@
 
   /** Number of video items of any known kind (used to detect layout changes). */
   function countVideoItems(json) {
-    return ['videoRenderer', 'lockupViewModel', 'reelItemRenderer', 'shortsLockupViewModel'].reduce((n, key) => n + collect(json, key).length, 0);
+    return ['videoRenderer', 'lockupViewModel', ...SHORT_KEYS].reduce((n, key) => n + collect(json, key).length, 0);
   }
 
   // ---------------------------------------------------------------- latest uploads
@@ -322,6 +341,41 @@
     return best;
   }
 
+  /** Video id of the first (newest) Short on a channel's Shorts tab, or null. */
+  function firstShortId(json) {
+    for (const short of shortsIn(json)) {
+      const id = findVideoId(short);
+      if (id) return id;
+    }
+    return null;
+  }
+
+  /** Publish date (ms) from a player response (microformat), or null. */
+  function parsePublishDate(json) {
+    const micro = collect(json, 'playerMicroformatRenderer')[0];
+    if (!micro) return null;
+    const time = Date.parse(micro.publishDate || micro.uploadDate || '');
+    return Number.isFinite(time) ? time : null;
+  }
+
+  /**
+   * Channel behind a channel URL such as oEmbed's `author_url` ("https://www.youtube.com/@handle"
+   * or "https://www.youtube.com/channel/UC…") → { channelId: 'UC…'|null, handle: '@…'|'' }, or null.
+   */
+  function parseOwnerUrl(url) {
+    const m = String(url || '').match(/^https?:\/\/(?:www\.|m\.)?youtube\.com\/(?:(@[^/?#]+)|channel\/(UC[\w-]{22}))(?:[/?#]|$)/);
+    if (!m) return null;
+    let handle = m[1] || '';
+    if (handle) {
+      try {
+        handle = decodeURIComponent(handle);
+      } catch {
+        // keep the encoded form
+      }
+    }
+    return { channelId: m[2] || null, handle };
+  }
+
   // ---------------------------------------------------------------- Google Takeout
 
   /** Entries of Takeout's watch-history.json → [{ channelId, date }]. */
@@ -358,6 +412,9 @@
     parseFeed,
     parseRelativeAge,
     newestRelativeAge,
+    firstShortId,
+    parsePublishDate,
+    parseOwnerUrl,
     parseTakeoutHistory,
   };
 })();

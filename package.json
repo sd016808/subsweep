@@ -1,6 +1,6 @@
 {
   "name": "subsweep",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "license": "UNLICENSED",
   "description": "SubSweep – Subscription Cleaner for YouTube: a Chrome and Firefox extension that finds YouTube channels you have outgrown and unsubscribes in bulk.",

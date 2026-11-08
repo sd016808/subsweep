@@ -89,6 +89,9 @@
   "noticeHistoryShort": { "message": "你的观看记录最早只到 {0}，“很久没看”会以这段时间来判断。" },
   "noticeHistoryRescan": { "message": "观看记录目前只读到 {0}。重新扫描即可读取更早的记录。" },
   "noticeUnsubPending": { "message": "上次的批量取消订阅被中断了，还有 {0} 个频道没有处理。" },
+  "noticeUpdatedShorts": { "message": "SubSweep 已更新：Shorts 和直播现在会计入“最后观看”与“最后上传”。请重新读取一次观看记录，之前看过的 Shorts 才会算进去。" },
+  "rereadHistory": { "message": "立即重新读取" },
+  "gotIt": { "message": "知道了" },
 
   "selectedCount": { "message": "已选中 {0} 个" },
   "clearSelection": { "message": "清除" },

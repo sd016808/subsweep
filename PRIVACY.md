@@ -18,7 +18,8 @@ SubSweep only runs on `www.youtube.com`, and only does something when you open i
 | --- | --- |
 | Your list of subscribed channels (channel ID, name, handle, avatar URL, subscriber count text) | To show your subscriptions and let you choose which ones to unsubscribe from |
 | Your YouTube watch history (which channels' videos you watched, and on which day) | To show when you last watched each channel ("Not watching" filter) |
-| Each subscribed channel's public upload feed / channel page | To show when each channel last uploaded ("Not uploading" filter) |
+| For Shorts in your watch history, the public oEmbed data of the video (which channel posted it). These requests are sent without your session | The history page lists Shorts without their channel; this is how they are counted for the channel ("Not watching" filter) |
+| Each subscribed channel's public upload feed / channel page (Videos, Live and Shorts tabs), and the public details (publish date) of a channel's newest Short | To show when each channel last uploaded ("Not uploading" filter) |
 | Your YouTube session (the same session cookie YouTube's own page uses) | To sign the requests to YouTube in the same way YouTube's website does. The value is used in the page only for that purpose. It is never stored by the extension and never sent anywhere other than youtube.com |
 
 If you choose to import a Google Takeout `watch-history.json` file, the extension reads that file locally to compute the same "last watched" information.

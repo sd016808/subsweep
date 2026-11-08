@@ -89,6 +89,9 @@
   "noticeHistoryShort": { "message": "시청 기록이 {0}까지만 있어 ‘안 보는 채널’은 이 기간을 기준으로 판단합니다." },
   "noticeHistoryRescan": { "message": "시청 기록을 {0}까지만 읽었습니다. 다시 스캔하면 더 이전 기록까지 읽습니다." },
   "noticeUnsubPending": { "message": "지난 일괄 구독 취소가 중단되었습니다. 아직 {0}개 채널이 남아 있습니다." },
+  "noticeUpdatedShorts": { "message": "SubSweep가 업데이트되었습니다. 이제 Shorts와 실시간 스트리밍도 ‘마지막 시청’과 ‘마지막 업로드’에 포함됩니다. 이미 시청한 Shorts까지 반영하려면 시청 기록을 한 번 다시 읽어 주세요." },
+  "rereadHistory": { "message": "지금 다시 읽기" },
+  "gotIt": { "message": "확인" },
 
   "selectedCount": { "message": "{0}개 선택됨" },
   "clearSelection": { "message": "선택 해제" },

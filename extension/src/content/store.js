@@ -41,6 +41,8 @@
     uploads: {},
     watch: {},
     history: null,
+    watchVersion: '', // extension version that last read the watch history in full (filters.updateNotice)
+    noticeSeen: '', // update notice the user dismissed (filters.updateNotice)
     historyPartial: null, // checkpoint of an unfinished watch-history read (see app.js)
     historyError: null,
     unsubQueue: null, // channels still waiting in an interrupted bulk unsubscribe

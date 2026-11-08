@@ -89,6 +89,9 @@
   "noticeHistoryShort": { "message": "Your watch history only goes back to {0}, so “Not watching” is judged within that period." },
   "noticeHistoryRescan": { "message": "Watch history has only been read back to {0}. Scan again to read further back." },
   "noticeUnsubPending": { "message": "Your last bulk unsubscribe was interrupted. {0} channels are still left." },
+  "noticeUpdatedShorts": { "message": "SubSweep now counts Shorts and live streams in “Last watched” and “Last upload”. Re-read your watch history once so the Shorts you already watched count too." },
+  "rereadHistory": { "message": "Re-read now" },
+  "gotIt": { "message": "Got it" },
 
   "selectedCount": { "message": "{0} selected" },
   "clearSelection": { "message": "Clear" },

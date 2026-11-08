@@ -34,6 +34,32 @@
     return out;
   }
 
+  /** Numeric comparison of version strings such as "1.0.3" (missing parts count as 0). */
+  function compareVersions(a, b) {
+    const pa = String(a || '').split('.').map(Number);
+    const pb = String(b || '').split('.').map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const d = (pa[i] || 0) - (pb[i] || 0);
+      if (d) return d < 0 ? -1 : 1;
+    }
+    return 0;
+  }
+
+  // Since this version, Shorts (and live streams) are counted. A watch history read by an
+  // older version misses the Shorts in it; only a full re-read adds them.
+  const SHORTS_SINCE = '1.0.3';
+
+  /**
+   * Whether to tell the user about the update: their watch history was last read in full by
+   * a version older than SHORTS_SINCE (`data.watchVersion`), and they haven't dismissed the
+   * notice (`data.noticeSeen`).
+   */
+  function updateNotice(data) {
+    if (!data.history || !data.lastScanAt) return false;
+    if (data.noticeSeen === SHORTS_SINCE) return false;
+    return compareVersions(data.watchVersion || '0', SHORTS_SINCE) < 0;
+  }
+
   /** What we know about the user's watch history coverage. */
   function historyInfo(data) {
     const history = data.history;
@@ -169,5 +195,5 @@
     return `﻿${lines.join('\r\n')}\r\n`;
   }
 
-  NS.filters = { MODES, SORTS, mergedWatch, historyInfo, buildRows, countModes, filterRows, sortRows, toCsv };
+  NS.filters = { MODES, SORTS, SHORTS_SINCE, compareVersions, updateNotice, mergedWatch, historyInfo, buildRows, countModes, filterRows, sortRows, toCsv };
 })();
