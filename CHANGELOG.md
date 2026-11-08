@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4 — 2026-11-08
+
+Same code as 1.0.3, with a new version number: 1.0.3 was uploaded to Firefox Add-ons by mistake, and AMO uses each version number only once per add-on. Use 1.0.4 for both stores.
+
 ## 1.0.3 — 2026-11-08
 
 - After updating, users who scanned with an older version see a one-time notice in the panel: Shorts and live streams are now counted, with a button that re-reads the watch history in full (Shorts already in the history are only counted by a full re-read) and rechecks the latest uploads. "Got it" hides it.
